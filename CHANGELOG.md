@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-alpha.3
+
+- Sửa tab Thông tin bị cắt nội dung và nút Giấy phép & nguồn gốc do dùng đơn vị kích thước khác với cửa sổ Nâng cao.
+- Hiển thị đầy đủ tên nút và giữ các tùy chọn trong tab nằm trong vùng hiển thị.
+
 ## 0.1.0-alpha.2
 
 - Sửa vùng Điều khiển trong Nâng cao bị trắng và che các tùy chọn kiểu gõ, bảng mã, phím chuyển, âm thanh và chế độ Việt/Anh.

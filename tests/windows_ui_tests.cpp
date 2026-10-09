@@ -124,6 +124,22 @@ void testAdvancedDialog() {
         check(option&&IsWindowVisible(option)&&IsWindowEnabled(option),"Selected page option is visible and enabled");
         if(!option)continue;
         HWND page=GetParent(option);
+        if(i==3) {
+            RECT pageRect;GetClientRect(page,&pageRect);
+            for(HWND child=GetWindow(page,GW_CHILD);child;child=GetWindow(child,GW_HWNDNEXT)) {
+                RECT bounds;GetWindowRect(child,&bounds);MapWindowPoints(nullptr,page,(POINT*)&bounds,2);
+                check(bounds.left>=0&&bounds.top>=0&&bounds.right<=pageRect.right&&bounds.bottom<=pageRect.bottom,
+                    "Information page content fits entirely inside its host");
+            }
+            RECT buttonRect;GetClientRect(option,&buttonRect);
+            wchar_t title[128]={};GetWindowTextW(option,title,128);
+            HDC textDc=GetDC(option);
+            HGDIOBJ old=SelectObject(textDc,(HFONT)SendMessage(option,WM_GETFONT,0,0));
+            RECT measured={};DrawTextW(textDc,title,-1,&measured,DT_CALCRECT|DT_SINGLELINE);
+            check(measured.right+8<=buttonRect.right,"License button has room for its complete caption");
+            check(PtVisible(textDc,buttonRect.right-2,buttonRect.bottom/2)!=FALSE,"License button right edge is not clipped");
+            SelectObject(textDc,old);ReleaseDC(option,textDc);
+        }
         POINT point=center(option);
         check(WindowFromPoint(point)==option,"Mouse hit reaches page option instead of tab");
         // Native window DCs must clip children/siblings during real WM_PAINT.

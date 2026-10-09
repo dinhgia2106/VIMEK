@@ -266,13 +266,14 @@ END
 
 IDD_DIALOG_TAB_INFO DIALOGEX 0, 0, 287, 119
 STYLE DS_SETFONT | DS_FIXEDSYS | DS_CONTROL | WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS
-FONT 9, "Segoe UI"
+// Match the host's font so dialog units scale consistently with the tab area.
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     ICON            IDI_APP_ICON,IDC_STATIC,10,13,20,20
     LTEXT           "VIMEK — Bộ gõ tiếng Việt",IDC_STATIC_APP_TITLE,39,9,234,12,SS_NOPREFIX
     LTEXT           "Phiên bản",IDC_STATIC_APP_VERSION_INFO,39,29,234,10
     LTEXT           "GPL-3.0 · Xem ghi nhận tác giả và nguồn gốc trong Giới thiệu.",IDC_STATIC_APP_SUB_TITLE5,39,49,234,28
-    PUSHBUTTON      "Giấy phép & nguồn gốc",IDC_BUTTON_GO_SOURCE_CODE,153,91,120,17
+    PUSHBUTTON      "Giấy phép && nguồn gốc",IDC_BUTTON_GO_SOURCE_CODE,153,91,120,17
 END
 
 
