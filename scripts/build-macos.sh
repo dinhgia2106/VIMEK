@@ -35,6 +35,7 @@ plutil -replace CFBundleIdentifier -string org.vimek.inputmethod.helper "$vimek_
 plutil -replace CFBundleDevelopmentRegion -string vi "$vimek_helper/Contents/Info.plist"
 plutil -replace LSMinimumSystemVersion -string 11.0 "$vimek_helper/Contents/Info.plist"
 codesign --force --sign - "$vimek_helper"
+cp LICENSE NOTICE.md dist/macos/VIMEK.app/Contents/Resources/
 codesign --force --sign - dist/macos/VIMEK.app
 codesign --verify --deep --strict dist/macos/VIMEK.app
 cp LICENSE NOTICE.md dist/macos/

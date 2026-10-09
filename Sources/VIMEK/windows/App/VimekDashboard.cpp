@@ -3,6 +3,7 @@
 #include "AppDelegate.h"
 #include "VimekTheme.h"
 #include <dwmapi.h>
+#include <objidl.h>
 #include <gdiplus.h>
 #include <algorithm>
 #pragma comment(lib, "dwmapi.lib")

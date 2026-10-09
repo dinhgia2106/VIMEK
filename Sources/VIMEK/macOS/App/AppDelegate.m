@@ -450,7 +450,7 @@ extern bool convertToolDontAlertWhenCompleted;
     [self fillData];
     [viewController fillData];
     
-    if (willNotify && HAS_BEEP(vSwitchKeyStatus)) NSBeep();
+    if (willNotify && (vSwitchKeyStatus & 0x8000)) NSBeep();
     if (willNotify)
         OnInputMethodChanged();
 }

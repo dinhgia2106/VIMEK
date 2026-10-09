@@ -1,6 +1,7 @@
 param(
     [ValidateSet('x64','x86')] [string]$Platform = 'x64',
-    [string]$BinaryRoot = 'dist'
+    [string]$BinaryRoot = 'dist',
+    [ValidatePattern('^[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?$')] [string]$Version = '0.1.0'
 )
 $ErrorActionPreference = 'Stop'
 $vimekRoot = Split-Path -Parent $PSScriptRoot
@@ -13,12 +14,12 @@ try {
     $vimekBinary = Join-Path $vimekBinaryDir "VIMEK$vimekBits.exe"
     if (-not (Test-Path -LiteralPath $vimekBinary)) { throw 'Run build-windows.ps1 first.' }
     Copy-Item README.md "$vimekBinaryDir/README.md"
-    Compress-Archive -Path $vimekBinary,"$vimekBinaryDir/LICENSE","$vimekBinaryDir/NOTICE.md","$vimekBinaryDir/README.md" -DestinationPath "dist/VIMEK-0.1.0-Windows-$Platform.zip" -Force
+    Compress-Archive -Path $vimekBinary,"$vimekBinaryDir/LICENSE","$vimekBinaryDir/NOTICE.md","$vimekBinaryDir/README.md" -DestinationPath "dist/VIMEK-$Version-Windows-$Platform.zip" -Force
 
     # Include actual working-tree changes and new files, preserving directories.
     # Exclude the Git database, compiler and outputs via .gitignore.
     Add-Type -AssemblyName System.IO.Compression.FileSystem
-    $vimekArchivePath = Join-Path $vimekRoot 'dist/VIMEK-0.1.0-source.zip'
+    $vimekArchivePath = Join-Path $vimekRoot "dist/VIMEK-$Version-source.zip"
     $vimekStream = [System.IO.File]::Open($vimekArchivePath, [System.IO.FileMode]::Create)
     $vimekArchive = [System.IO.Compression.ZipArchive]::new($vimekStream, [System.IO.Compression.ZipArchiveMode]::Create)
     try {
@@ -31,6 +32,6 @@ try {
             }
         }
     } finally { $vimekArchive.Dispose(); $vimekStream.Dispose() }
-    Get-FileHash "dist/VIMEK-0.1.0-Windows-$Platform.zip",$vimekArchivePath -Algorithm SHA256 | ForEach-Object { "$($_.Hash)  $(Split-Path -Leaf $_.Path)" } | Set-Content -Encoding utf8 "dist/SHA256-$Platform.txt"
+    Get-FileHash "dist/VIMEK-$Version-Windows-$Platform.zip",$vimekArchivePath -Algorithm SHA256 | ForEach-Object { "$($_.Hash)  $(Split-Path -Leaf $_.Path)" } | Set-Content -Encoding utf8 "dist/SHA256-$Platform.txt"
     Write-Host "Packaged Windows $Platform and corresponding VIMEK source."
 } finally { Pop-Location }
