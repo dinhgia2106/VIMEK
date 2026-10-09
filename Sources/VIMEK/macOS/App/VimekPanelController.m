@@ -15,7 +15,7 @@ extern void OnSpellCheckingChanged(void);
 -(void)drawRect:(NSRect)dirtyRect {
     [NSColor.windowBackgroundColor setFill];NSRectFill(self.bounds);
     [NSColor.separatorColor setStroke];
-    for(NSNumber *y in @[@378,@434,@543,@608]) {
+    for(NSNumber *y in @[@318,@374,@483,@548]) {
         NSBezierPath *line=[NSBezierPath bezierPath];[line moveToPoint:NSMakePoint(32,y.doubleValue)];
         [line lineToPoint:NSMakePoint(628,y.doubleValue)];[line stroke];
     }
@@ -23,14 +23,14 @@ extern void OnSpellCheckingChanged(void);
     CGFloat e[][2]={{17,13},{48,13},{48,20},{25,20},{25,29},{45,29},{45,36},{25,36},{25,44},{48,44},{48,51},{17,51}};
     NSBezierPath *path=[NSBezierPath bezierPath];
     for(int i=0;i<(vLanguage?7:12);++i){CGFloat x=vLanguage?v[i][0]:e[i][0],y=vLanguage?v[i][1]:e[i][1];
-        NSPoint p=NSMakePoint(24+x*1.45,88+y*1.45);if(!i)[path moveToPoint:p];else[path lineToPoint:p];}
+        NSPoint p=NSMakePoint(24+x*1.45,48+y*1.45);if(!i)[path moveToPoint:p];else[path lineToPoint:p];}
     [path closePath];path.lineWidth=1.6;[NSColor.labelColor setStroke];[path stroke];
 }
 @end
 
 @implementation VimekPanelController {
     NSSegmentedControl *_language, *_method;
-    NSTextField *_heading, *_hint, *_example, *_footer;
+    NSTextField *_heading, *_example, *_footer;
     NSButton *_spell, *_smart, *_hotkey;
 }
 -(NSTextField*)label:(NSString*)value frame:(NSRect)frame size:(CGFloat)size muted:(BOOL)muted {
@@ -45,40 +45,37 @@ extern void OnSpellCheckingChanged(void);
     [self.window.contentView addSubview:button];return button;
 }
 -(instancetype)init {
-    NSWindow *window=[[NSWindow alloc] initWithContentRect:NSMakeRect(0,0,660,656)
+    NSWindow *window=[[NSWindow alloc] initWithContentRect:NSMakeRect(0,0,660,596)
         styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskClosable|NSWindowStyleMaskMiniaturizable backing:NSBackingStoreBuffered defer:NO];
     self=[super initWithWindow:window];if(!self)return nil;
     window.title=@"VIMEK";window.releasedWhenClosed=NO;window.delegate=self;
     // No explicit appearance: native semantic colors follow macOS live.
-    window.contentView=[[VimekSurface alloc] initWithFrame:NSMakeRect(0,0,660,656)];
+    window.contentView=[[VimekSurface alloc] initWithFrame:NSMakeRect(0,0,660,596)];
     [self label:@"V I M E K" frame:NSMakeRect(32,23,596,24) size:13 muted:NO];
-    [self label:@"Bộ gõ của bạn." frame:NSMakeRect(32,53,596,26) size:15 muted:YES];
-    _heading=[self label:@"Tiếng Việt" frame:NSMakeRect(130,106,470,45) size:34 muted:NO];
-    _hint=[self label:@"" frame:NSMakeRect(130,152,480,26) size:14 muted:YES];
+    _heading=[self label:@"Tiếng Việt" frame:NSMakeRect(130,66,470,45) size:34 muted:NO];
     _language=[NSSegmentedControl segmentedControlWithLabels:@[@"Tiếng Việt",@"English"] trackingMode:NSSegmentSwitchTrackingSelectOne target:self action:@selector(languageChanged:)];
-    _language.frame=NSMakeRect(32,202,596,36);_language.segmentStyle=NSSegmentStyleRounded;
+    _language.frame=NSMakeRect(32,142,596,36);_language.segmentStyle=NSSegmentStyleRounded;
     for(int i=0;i<2;i++)[_language setWidth:292 forSegment:i];[window.contentView addSubview:_language];
-    [self label:@"KIỂU GÕ" frame:NSMakeRect(32,258,596,24) size:12 muted:YES];
+    [self label:@"KIỂU GÕ" frame:NSMakeRect(32,198,596,24) size:12 muted:YES];
     NSMutableArray *labels=[NSMutableArray array];for(int i=0;i<VIMEK_INPUT_METHOD_COUNT;i++)[labels addObject:[NSString stringWithUTF8String:vimekInputMethodName(i)]];
     _method=[NSSegmentedControl segmentedControlWithLabels:labels trackingMode:NSSegmentSwitchTrackingSelectOne target:self action:@selector(methodChanged:)];
-    _method.frame=NSMakeRect(32,290,596,36);for(int i=0;i<4;i++)[_method setWidth:145 forSegment:i];[window.contentView addSubview:_method];
-    _example=[self label:@"" frame:NSMakeRect(32,339,596,26) size:14 muted:YES];
-    [self label:@"Phím chuyển Việt / Anh" frame:NSMakeRect(32,397,360,25) size:15 muted:NO];
-    _hotkey=[self button:@"⌃ Control + ⌥ Option" frame:NSMakeRect(412,386,216,40) action:@selector(resetShortcut:)];
+    _method.frame=NSMakeRect(32,230,596,36);for(int i=0;i<4;i++)[_method setWidth:145 forSegment:i];[window.contentView addSubview:_method];
+    _example=[self label:@"" frame:NSMakeRect(32,279,596,26) size:14 muted:YES];
+    [self label:@"Phím chuyển Việt / Anh" frame:NSMakeRect(32,337,360,25) size:15 muted:NO];
+    _hotkey=[self button:@"⌃ Control + ⌥ Option" frame:NSMakeRect(412,326,216,40) action:@selector(resetShortcut:)];
     _hotkey.toolTip=@"Bấm để dùng Control + Option. Đặt phím khác trong Nâng cao.";
-    [self label:@"Kiểm tra chính tả" frame:NSMakeRect(32,456,410,26) size:15 muted:NO];
-    _spell=[self button:@"Bật" frame:NSMakeRect(538,441,90,40) action:@selector(spellingChanged:)];
-    [self label:@"Nhớ chế độ theo ứng dụng" frame:NSMakeRect(32,505,410,26) size:15 muted:NO];
-    _smart=[self button:@"Bật" frame:NSMakeRect(538,490,90,40) action:@selector(smartChanged:)];
-    [self button:@"Gõ tắt" frame:NSMakeRect(32,556,188,40) action:@selector(macros:)];
-    [self button:@"Chuyển mã" frame:NSMakeRect(232,556,188,40) action:@selector(convert:)];
-    [self button:@"Nâng cao" frame:NSMakeRect(432,556,196,40) action:@selector(advanced:)];
-    _footer=[self label:@"" frame:NSMakeRect(32,623,596,22) size:12 muted:YES];
+    [self label:@"Kiểm tra chính tả" frame:NSMakeRect(32,396,410,26) size:15 muted:NO];
+    _spell=[self button:@"Bật" frame:NSMakeRect(538,381,90,40) action:@selector(spellingChanged:)];
+    [self label:@"Nhớ chế độ theo ứng dụng" frame:NSMakeRect(32,445,410,26) size:15 muted:NO];
+    _smart=[self button:@"Bật" frame:NSMakeRect(538,430,90,40) action:@selector(smartChanged:)];
+    [self button:@"Gõ tắt" frame:NSMakeRect(32,496,188,40) action:@selector(macros:)];
+    [self button:@"Chuyển mã" frame:NSMakeRect(232,496,188,40) action:@selector(convert:)];
+    [self button:@"Nâng cao" frame:NSMakeRect(432,496,196,40) action:@selector(advanced:)];
+    _footer=[self label:@"" frame:NSMakeRect(32,563,596,22) size:12 muted:YES];
     [self refresh];[window center];return self;
 }
 -(void)refresh {
     _heading.stringValue=vLanguage?@"Tiếng Việt":@"English";
-    _hint.stringValue=vLanguage?@"Sẵn sàng viết điều bạn muốn.":@"Gõ nguyên bản, không thêm dấu.";
     _language.selectedSegment=vLanguage?0:1;_method.selectedSegment=vimekNormalizeInputMethod(vInputType);
     _example.stringValue=vInputType==1?@"Ví dụ: tie6ng1 Vie6t5 → tiếng Việt":@"Ví dụ: tieengs Vieetj → tiếng Việt";
     _spell.title=vCheckSpelling?@"Bật":@"Tắt";_smart.title=vUseSmartSwitchKey?@"Bật":@"Tắt";
@@ -93,7 +90,7 @@ extern void OnSpellCheckingChanged(void);
     if(character!=0xFE&&character)[keys addObject:[NSString stringWithFormat:@"%C",(unichar)character]];
     _hotkey.title=keys.count?[keys componentsJoinedByString:@" + "]:@"Chưa đặt";
     NSArray *codes=@[@"Unicode",@"TCVN3",@"VNI Windows",@"Unicode tổ hợp",@"CP1258"];
-    _footer.stringValue=[NSString stringWithFormat:@"%@  ·  Tự theo giao diện macOS",codes[(vCodeTable>=0&&vCodeTable<5)?vCodeTable:0]];
+    _footer.stringValue=codes[(vCodeTable>=0&&vCodeTable<5)?vCodeTable:0];
     [self.window.contentView setNeedsDisplay:YES];
 }
 -(void)windowDidBecomeKey:(NSNotification*)notification {[self refresh];}

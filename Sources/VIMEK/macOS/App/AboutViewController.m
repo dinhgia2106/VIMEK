@@ -21,8 +21,9 @@
     
     self.CheckUpdateOnStatus.state = NSControlStateValueOff;
     self.CheckUpdateOnStatus.enabled = NO;
-    self.CheckNewVersionButton.title = @"Chưa có cập nhật";
     self.CheckNewVersionButton.enabled = NO;
+    self.CheckUpdateOnStatus.hidden = YES;
+    self.CheckNewVersionButton.hidden = YES;
 }
 
 - (IBAction)onHomePage:(id)sender {

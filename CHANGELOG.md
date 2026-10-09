@@ -4,6 +4,7 @@
 
 - Telex, VNI và hai biến thể Simple Telex.
 - Bảng điều khiển tự theo chế độ sáng/tối của hệ điều hành.
+- Cửa sổ Nâng cao, Gõ tắt, Chuyển mã và Giới thiệu dùng cùng chế độ sáng/tối.
 - Biểu tượng V/E trong suốt, hỗ trợ DPI cao và Retina.
 - Phím chuyển Ctrl+Alt trên Windows, Control+Option trên macOS.
 - Giữ một phím và bấm phím còn lại để chuyển Việt/Anh nhiều lần.

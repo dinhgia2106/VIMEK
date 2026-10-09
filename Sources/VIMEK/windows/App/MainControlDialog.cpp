@@ -283,16 +283,16 @@ INT_PTR MainControlDialog::tabPageEventProc(HWND hDlg, UINT uMsg, WPARAM wParam,
     else if (uMsg == WM_ERASEBKGND) {
         return TRUE;
     }
-    else if ((uMsg == WM_CTLCOLORSTATIC || uMsg == WM_CTLCOLORBTN) && IsThemeActive()) {
+    else if (uMsg == WM_CTLCOLORSTATIC || uMsg == WM_CTLCOLORBTN) {
         SetBkMode((HDC)wParam, TRANSPARENT);
-        return (LRESULT)GetStockObject(COLOR_WINDOW + 1);
+        return (LRESULT)GetSysColorBrush(COLOR_BTNFACE);
     }
-    else if (uMsg == WM_PAINT && IsThemeActive()) {
+    else if (uMsg == WM_PAINT) {
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hDlg, &ps);
 
         // All painting occurs here, between BeginPaint and EndPaint.
-        FillRect(hdc, &ps.rcPaint, (HBRUSH)(COLOR_WINDOW + 1));
+        FillRect(hdc, &ps.rcPaint, GetSysColorBrush(COLOR_BTNFACE));
 
         EndPaint(hDlg, &ps);
 

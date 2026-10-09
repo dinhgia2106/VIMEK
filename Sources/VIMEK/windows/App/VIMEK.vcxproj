@@ -171,6 +171,7 @@
     <ClInclude Include="MacroDialog.h" />
     <ClInclude Include="MainControlDialog.h" />
     <ClInclude Include="VimekDashboard.h" />
+    <ClInclude Include="VimekTheme.h" />
     <ClInclude Include="VimekHelper.h" />
     <ClInclude Include="VimekManager.h" />
     <ClInclude Include="Resource.h" />
@@ -182,6 +183,7 @@
     <ClCompile Include="..\..\engine\ConvertTool.cpp" />
     <ClCompile Include="..\..\engine\Engine.cpp" />
     <ClCompile Include="VimekDashboard.cpp" />
+    <ClCompile Include="VimekTheme.cpp" />
     <ClCompile Include="..\..\engine\Macro.cpp" />
     <ClCompile Include="..\..\engine\SmartSwitchKey.cpp" />
     <ClCompile Include="..\..\engine\Vietnamese.cpp" />

@@ -472,7 +472,8 @@ extern int vPerformLayoutCompat;
     self.CheckNewVersionOnStartup.state = NSControlStateValueOff;
     self.CheckNewVersionOnStartup.enabled = NO;
     self.CheckNewVersionButton.enabled = NO;
-    self.CheckNewVersionButton.title = @"Chưa có cập nhật";
+    self.CheckNewVersionOnStartup.hidden = YES;
+    self.CheckNewVersionButton.hidden = YES;
     
     value = [[NSUserDefaults standardUserDefaults] integerForKey:@"vFixChromiumBrowser"];
     self.FixChromiumBrowser.state = value ? NSControlStateValueOn : NSControlStateValueOff;

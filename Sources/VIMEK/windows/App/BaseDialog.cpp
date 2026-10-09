@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Upstream attribution and modifications: see NOTICE.md.
 #include "BaseDialog.h"
+#include "VimekTheme.h"
 static TCHAR tooltipBuff[1024];
 
 INT_PTR CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
@@ -13,7 +14,9 @@ INT_PTR CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 		SetWindowLong(hDlg, GWL_USERDATA, lParam);
 #endif
 		BaseDialog*b = (BaseDialog*)lParam;
-		return b->eventProc(hDlg, uMsg, wParam, lParam);
+		INT_PTR result = b->eventProc(hDlg, uMsg, wParam, lParam);
+		if (!b->hasCustomTheme()) vimekThemeDialog(hDlg);
+		return result;
 	}
 #ifdef _WIN64
 	LONG_PTR attr = GetWindowLongPtr(hDlg, GWLP_USERDATA);
