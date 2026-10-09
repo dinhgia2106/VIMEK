@@ -46,8 +46,9 @@ void paintButton(HWND window,HDC dc,Theme* theme) {
     wchar_t title[512]; GetWindowTextW(window,title,512);
     DWORD style=(DWORD)GetWindowLongPtr(window,GWL_STYLE);
     int type=style&BS_TYPEMASK, state=(int)SendMessage(window,BM_GETSTATE,0,0);
-    // Group boxes overlap sibling controls; only paint their border/caption.
-    if(type!=BS_GROUPBOX) FillRect(dc,&rect,theme->background);
+    // Group boxes sit behind their sibling controls. Their clipped DC paints
+    // the remaining interior because the dialog clips out the entire group.
+    FillRect(dc,&rect,theme->background);
     bool focused=(GetFocus()==window), pressed=(state&BST_PUSHED)!=0;
     UINT flags=DT_SINGLELINE|DT_VCENTER;
     if (SendMessage(window,WM_QUERYUISTATE,0,0)&UISF_HIDEACCEL) flags|=DT_HIDEPREFIX;
@@ -111,6 +112,11 @@ BOOL CALLBACK attach(HWND window,LPARAM param) {
     // Tab pages are siblings of the tab control. Clip overlapping siblings,
     // and never let a dialog background paint over its own child controls.
     SetWindowLongPtr(window,GWL_STYLE,GetWindowLongPtr(window,GWL_STYLE)|WS_CLIPSIBLINGS);
+    // A Win32 group box is a sibling of the controls it surrounds. Leaving
+    // it above those controls clips their entire drawing region away.
+    if(classIs(window,L"Button")&&(GetWindowLongPtr(window,GWL_STYLE)&BS_TYPEMASK)==BS_GROUPBOX) {
+        SetWindowPos(window,HWND_BOTTOM,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE);
+    }
     if(classIs(window,L"#32770")) {
         SetWindowLongPtr(window,GWL_STYLE,GetWindowLongPtr(window,GWL_STYLE)|WS_CLIPCHILDREN);
         SetWindowLongPtr(window,GWL_EXSTYLE,GetWindowLongPtr(window,GWL_EXSTYLE)&~WS_EX_TRANSPARENT);

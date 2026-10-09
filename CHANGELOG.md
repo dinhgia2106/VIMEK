@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-alpha.2
+
+- Sửa vùng Điều khiển trong Nâng cao bị trắng và che các tùy chọn kiểu gõ, bảng mã, phím chuyển, âm thanh và chế độ Việt/Anh.
+- Sửa khung nhóm tùy chọn trong Chuyển mã, kể cả sau khi cửa sổ vẽ lại hoặc đổi giao diện sáng/tối.
+- README tiếng Anh và tiếng Việt; landing page có nút tải cho Windows và macOS.
+- Sửa hiển thị dấu tiếng Việt trên website bằng font đi kèm.
+
 ## 0.1.0 — Alpha
 
 - Telex, VNI và hai biến thể Simple Telex.

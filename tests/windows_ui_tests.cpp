@@ -1,6 +1,7 @@
 // Copyright (C) 2026 GrazT. SPDX-License-Identifier: GPL-3.0-only
 #include "stdafx.h"
 #include "AppDelegate.h"
+#include "VimekTheme.h"
 #include <iostream>
 
 INT_PTR CALLBACK DialogProc(HWND,UINT,WPARAM,LPARAM);
@@ -30,6 +31,78 @@ HWND findOption(HWND root,int id) {
 POINT center(HWND window) {
     RECT rect;GetWindowRect(window,&rect);return {(rect.left+rect.right)/2,(rect.top+rect.bottom)/2};
 }
+HWND enclosingGroup(HWND root,POINT point) {
+    for(HWND child=GetWindow(root,GW_CHILD);child;child=GetWindow(child,GW_HWNDNEXT)) {
+        wchar_t name[32]={};GetClassNameW(child,name,32);
+        if(_wcsicmp(name,L"Button")||(GetWindowLongPtr(child,GWL_STYLE)&BS_TYPEMASK)!=BS_GROUPBOX)continue;
+        RECT rect;GetWindowRect(child,&rect);
+        if(PtInRect(&rect,point))return child;
+    }
+    return nullptr;
+}
+void checkGroupedControls(HWND root,const int* ids,int count) {
+    for(int i=0;i<count;++i) {
+        HWND control=GetDlgItem(root,ids[i]);
+        check(control&&IsWindowVisible(control),"Grouped control exists and is visible");
+        if(!control)continue;
+        POINT point=center(control);
+        HWND group=enclosingGroup(root,point);
+        check(group!=nullptr,"Control lies inside its visual group");
+        if(!group)continue;
+        POINT local=point;ScreenToClient(control,&local);
+        HDC dc=GetDC(control);
+        check(PtVisible(dc,local.x,local.y)!=FALSE,"Group box cannot clip out its control");ReleaseDC(control,dc);
+        local=point;ScreenToClient(group,&local);dc=GetDC(group);
+        check(!PtVisible(dc,local.x,local.y),"Group repaint excludes controls in front of it");ReleaseDC(group,dc);
+        // Disabled options intentionally do not receive mouse hits.
+        if(IsWindowEnabled(control))check(WindowFromPoint(point)==control,"Grouped control receives mouse hit testing");
+    }
+    if(vimekUsesDarkTheme()) {
+        HWND group=enclosingGroup(root,center(GetDlgItem(root,ids[0])));
+        if(!group)return;
+        RECT rect;GetClientRect(group,&rect);
+        HDC screen=GetDC(group),memory=CreateCompatibleDC(screen);
+        HBITMAP bitmap=CreateCompatibleBitmap(screen,rect.right,rect.bottom);
+        HGDIOBJ old=SelectObject(memory,bitmap);
+        FillRect(memory,&rect,(HBRUSH)GetStockObject(WHITE_BRUSH));
+        SendMessage(group,WM_PRINTCLIENT,(WPARAM)memory,PRF_CLIENT|PRF_ERASEBKGND);
+        check(GetPixel(memory,3,rect.bottom/2)==RGB(19,21,25),"Group paints its interior with the dark background");
+        SelectObject(memory,old);DeleteObject(bitmap);DeleteDC(memory);ReleaseDC(group,screen);
+    }
+}
+void testCommonControls(HWND root) {
+    const int ids[]={IDC_COMBO_INPUT_TYPE,IDC_COMBO_TABLE_CODE,IDC_CHECK_SWITCH_KEY_CTRL,
+        IDC_CHECK_SWITCH_KEY_ALT,IDC_CHECK_SWITCH_KEY_WIN,IDC_CHECK_SWITCH_KEY_SHIFT,
+        IDC_SWITCH_KEY_KEY,IDC_CHECK_SWITCH_KEY_BEEP,IDC_RADIO_METHOD_VIETNAMESE,IDC_RADIO_METHOD_ENGLISH};
+    for(int repeat=0;repeat<3;++repeat) {
+        if(repeat==1) {
+            HWND group=enclosingGroup(root,center(GetDlgItem(root,ids[0])));
+            RedrawWindow(group,nullptr,nullptr,RDW_INVALIDATE|RDW_ERASE|RDW_UPDATENOW);
+        } else if(repeat==2) {
+            SendMessage(root,WM_SETTINGCHANGE,0,0);SendMessage(root,WM_THEMECHANGED,0,0);
+        }
+        RedrawWindow(root,nullptr,nullptr,RDW_INVALIDATE|RDW_ERASE|RDW_ALLCHILDREN|RDW_UPDATENOW);pump();
+        checkGroupedControls(root,ids,sizeof(ids)/sizeof(ids[0]));
+    }
+    SetWindowSubclass(root,observeCommands,1,0);
+    for(int id:{IDC_CHECK_SWITCH_KEY_CTRL,IDC_CHECK_SWITCH_KEY_BEEP}) {
+        HWND control=GetDlgItem(root,id);
+        int beforeCommands=commands,beforeState=(int)SendMessage(control,BM_GETCHECK,0,0);
+        RECT rect;GetClientRect(control,&rect);LPARAM point=MAKELPARAM(rect.right/2,rect.bottom/2);
+        SendMessage(control,WM_LBUTTONDOWN,MK_LBUTTON,point);SendMessage(control,WM_LBUTTONUP,0,point);pump();
+        check(commands==beforeCommands+1,"Grouped checkbox click reaches the dialog");
+        check((int)SendMessage(control,BM_GETCHECK,0,0)!=beforeState,"Grouped checkbox changes state");
+        SendMessage(control,BM_SETCHECK,beforeState,0);
+    }
+    RemoveWindowSubclass(root,observeCommands,1);
+    for(int id:{IDC_COMBO_INPUT_TYPE,IDC_COMBO_TABLE_CODE}) {
+        HWND combo=GetDlgItem(root,id);
+        check(SendMessage(combo,CB_GETCOUNT,0,0)>1,"Grouped combo contains its options");
+        SendMessage(combo,CB_SHOWDROPDOWN,TRUE,0);pump();
+        check(SendMessage(combo,CB_GETDROPPEDSTATE,0,0)!=FALSE,"Grouped combo opens its option list");
+        SendMessage(combo,CB_SHOWDROPDOWN,FALSE,0);pump();
+    }
+}
 void testAdvancedDialog() {
     AppDelegate app;
     MainControlDialog dialog(GetModuleHandle(nullptr),IDD_DIALOG_MAIN);
@@ -37,6 +110,7 @@ void testAdvancedDialog() {
     check(root!=nullptr,"Advanced dialog opens");if(!root)return;
     SetWindowPos(root,nullptr,20,20,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
     ShowWindow(root,SW_SHOWNOACTIVATE);pump();
+    testCommonControls(root);
     HWND tab=GetDlgItem(root,IDC_TAB_CONTROL);
     const int options[]={IDC_CHECK_SPELLING,IDC_CHECK_USE_MACRO,IDC_CHECK_SHOW_ON_STARTUP,IDC_BUTTON_GO_SOURCE_CODE};
     for(int repeat=0;repeat<5;++repeat) for(int i=0;i<4;++i) {
@@ -79,6 +153,19 @@ void testAdvancedDialog() {
     }
     DestroyWindow(root);pump();
 }
+void testConvertGroups() {
+    AppDelegate app;
+    ConvertToolDialog dialog(GetModuleHandle(nullptr),IDD_DIALOG_CONVERT_TOOL);
+    HWND root=CreateDialogParam(GetModuleHandle(nullptr),MAKEINTRESOURCE(IDD_DIALOG_CONVERT_TOOL),nullptr,DialogProc,(LPARAM)&dialog);
+    check(root!=nullptr,"Conversion dialog opens");if(!root)return;
+    SetWindowPos(root,nullptr,20,20,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
+    ShowWindow(root,SW_SHOWNOACTIVATE);pump();
+    const int ids[]={IDC_CHECK_All_CAPS,IDC_CHECK_NON_ALL_CAPS,IDC_CHECK_REMOVE_MARK,
+        IDC_CHECK_CONVERT_CLIPBOARD,IDC_CHECK_SWITCH_KEY_CTRL,IDC_SWITCH_KEY_KEY,
+        IDC_COMBO_TABLE_CODE_SRC,IDC_COMBO_TABLE_CODE_DST};
+    checkGroupedControls(root,ids,sizeof(ids)/sizeof(ids[0]));
+    DestroyWindow(root);pump();
+}
 }
 int main() {
     // All shown test windows live on a separate desktop; never switch the user
@@ -91,7 +178,8 @@ int main() {
     }
     INITCOMMONCONTROLSEX controls={sizeof(controls),ICC_WIN95_CLASSES|ICC_LINK_CLASS};InitCommonControlsEx(&controls);
     testAdvancedDialog();
+    testConvertGroups();
     SetThreadDesktop(previous);CloseDesktop(desktop);
-    std::cout<<"20 native tab switches, repaints and option clicks; "<<failures<<" failures\n";
+    std::cout<<"Grouped controls and 20 native tab switches, repaints and option clicks; "<<failures<<" failures\n";
     return failures?1:0;
 }
