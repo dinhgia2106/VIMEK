@@ -108,6 +108,13 @@ void paintCombo(HWND window,HDC dc,Theme* theme) {
 }
 BOOL CALLBACK attach(HWND window,LPARAM param) {
     Theme* theme=(Theme*)param;
+    // Tab pages are siblings of the tab control. Clip overlapping siblings,
+    // and never let a dialog background paint over its own child controls.
+    SetWindowLongPtr(window,GWL_STYLE,GetWindowLongPtr(window,GWL_STYLE)|WS_CLIPSIBLINGS);
+    if(classIs(window,L"#32770")) {
+        SetWindowLongPtr(window,GWL_STYLE,GetWindowLongPtr(window,GWL_STYLE)|WS_CLIPCHILDREN);
+        SetWindowLongPtr(window,GWL_EXSTYLE,GetWindowLongPtr(window,GWL_EXSTYLE)&~WS_EX_TRANSPARENT);
+    }
     SetWindowSubclass(window,themeProc,subclassId,(DWORD_PTR)theme);
     // List view colors are documented independently of the native theme.
     if(classIs(window,WC_LISTVIEWW)) {
@@ -190,6 +197,7 @@ bool vimekUsesDarkTheme() {
 }
 void vimekThemeDialog(HWND window) {
     if(!window) return;
+    SetWindowLongPtr(window,GWL_STYLE,GetWindowLongPtr(window,GWL_STYLE)|WS_CLIPCHILDREN);
     Theme* theme=(Theme*)GetPropW(window,themeProperty);
     if(!theme) { theme=new Theme;theme->root=window;SetPropW(window,themeProperty,theme);SetWindowSubclass(window,themeProc,subclassId,(DWORD_PTR)theme); }
     update(theme);

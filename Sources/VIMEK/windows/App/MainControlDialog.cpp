@@ -583,10 +583,15 @@ void MainControlDialog::setSwitchKeyText(const HWND& hWnd, const UINT16& keyCode
 
 void MainControlDialog::onTabIndexChanged() {
     int index = TabCtrl_GetCurSel(hTab);
-    ShowWindow(hTabPage1, (index == 0) ? SW_SHOW : SW_HIDE);
-    ShowWindow(hTabPage2, (index == 1) ? SW_SHOW : SW_HIDE);
-    ShowWindow(hTabPage3, (index == 2) ? SW_SHOW : SW_HIDE);
-    ShowWindow(hTabPage4, (index == 3) ? SW_SHOW : SW_HIDE);
+    HWND pages[]={hTabPage1,hTabPage2,hTabPage3,hTabPage4};
+    for(int i=0;i<4;++i) {
+        if(i!=index) ShowWindow(pages[i],SW_HIDE);
+    }
+    if(index>=0&&index<4) {
+        HWND page=pages[index];
+        SetWindowPos(page,HWND_TOP,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE|SWP_SHOWWINDOW);
+        RedrawWindow(page,nullptr,nullptr,RDW_INVALIDATE|RDW_ERASE|RDW_ALLCHILDREN);
+    }
 }
 
 void MainControlDialog::onUpdateButton() {

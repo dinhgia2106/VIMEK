@@ -26,16 +26,24 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Engine test compilation failed.' }
     & "./build/$Platform/engine_tests.exe"
     if ($LASTEXITCODE -ne 0) { throw 'Engine tests failed.' }
+    $vimekWin = Join-Path $vimekRoot 'Sources/VIMEK/windows/App'
+    Push-Location $vimekWin
+    try {
+        & $vimekWindres '--codepage=65001' '-DVIMEK_PORTABLE_BUILD' '-i' 'VIMEK.rc' '-o' "$vimekRoot/build/$Platform/vimek.res" '-O' 'coff'
+        if ($LASTEXITCODE -ne 0) { throw 'Resource compilation failed.' }
+    } finally { Pop-Location }
+    $vimekSources = @(Get-ChildItem $vimekWin -Filter '*.cpp' | ForEach-Object FullName)
+    $vimekLibraries = @('-lcomctl32','-lcomdlg32','-lshell32','-lole32','-luuid','-lversion','-lurlmon','-luxtheme','-limm32','-lpsapi','-lgdiplus','-ldwmapi','-lgdi32')
+    $vimekUiSources = @($vimekSources | Where-Object { (Split-Path -Leaf $_) -ne 'main.cpp' })
+    & $vimekCompiler @vimekFlags "-I$vimekWin" @vimekEngine @vimekUiSources 'tests/windows_ui_tests.cpp' "build/$Platform/vimek.res" '-o' "build/$Platform/windows_ui_tests.exe" @vimekLibraries
+    if ($LASTEXITCODE -ne 0) { throw 'Windows UI test compilation failed.' }
+    foreach ($vimekTheme in @('--preview-dark','--preview-light')) {
+        & "./build/$Platform/windows_ui_tests.exe" $vimekTheme
+        if ($LASTEXITCODE -ne 0) { throw "Windows UI tests failed: $vimekTheme" }
+    }
     if (-not $TestsOnly) {
-        $vimekWin = Join-Path $vimekRoot 'Sources/VIMEK/windows/App'
-        Push-Location $vimekWin
-        try {
-            & $vimekWindres '--codepage=65001' '-DVIMEK_PORTABLE_BUILD' '-i' 'VIMEK.rc' '-o' "$vimekRoot/build/$Platform/vimek.res" '-O' 'coff'
-            if ($LASTEXITCODE -ne 0) { throw 'Resource compilation failed.' }
-        } finally { Pop-Location }
-        $vimekSources = @(Get-ChildItem $vimekWin -Filter '*.cpp' | ForEach-Object FullName)
         $vimekBits = if ($Platform -eq 'x64') { '64' } else { '32' }
-        & $vimekCompiler @vimekFlags '-DNDEBUG' '-municode' '-mwindows' @vimekEngine @vimekSources "build/$Platform/vimek.res" '-o' "$vimekOutput/VIMEK$vimekBits.exe" '-lcomctl32' '-lcomdlg32' '-lshell32' '-lole32' '-luuid' '-lversion' '-lurlmon' '-luxtheme' '-limm32' '-lpsapi' '-lgdiplus' '-ldwmapi'
+        & $vimekCompiler @vimekFlags '-DNDEBUG' '-municode' '-mwindows' @vimekEngine @vimekSources "build/$Platform/vimek.res" '-o' "$vimekOutput/VIMEK$vimekBits.exe" @vimekLibraries
         if ($LASTEXITCODE -ne 0) { throw 'Windows application compilation failed.' }
         Copy-Item LICENSE "$vimekOutput/LICENSE"
         Copy-Item NOTICE.md "$vimekOutput/NOTICE.md"
