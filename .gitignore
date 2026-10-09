@@ -1,0 +1,13 @@
+# Local tools and generated outputs
+/.tools/
+/build/
+/dist/
+/.build/
+**/.vs/
+**/Debug/
+**/Release/
+**/DerivedData/
+**/xcuserdata/
+*.vcxproj.user
+*.suo
+.DS_Store

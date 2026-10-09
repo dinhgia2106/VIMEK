@@ -1,0 +1,38 @@
+name: VIMEK build and tests
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build/ci -A x64
+      - name: Build
+        run: cmake --build build/ci --config Release
+      - name: Test traditional input
+        run: ctest --test-dir build/ci -C Release --output-on-failure
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VIMEK-Windows-x64
+          path: |
+            build/ci/Release/VIMEK.exe
+            LICENSE
+            NOTICE.md
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build universal app and test engine
+        run: bash scripts/build-macos.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VIMEK-macOS
+          path: |
+            dist/macos/VIMEK-macOS.zip
+            LICENSE
+            NOTICE.md
