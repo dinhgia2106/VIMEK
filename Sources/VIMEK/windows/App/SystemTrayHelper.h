@@ -15,5 +15,6 @@ private:
 public:
 	static void createSystemTrayIcon(const HINSTANCE& hIns);
 	static void updateData();
+	static void requestUpdate();
 	static void removeSystemTray();
 };

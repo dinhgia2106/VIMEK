@@ -6,6 +6,23 @@
 #include "../Sources/VIMEK/engine/ModifierShortcut.h"
 #include <iostream>
 
+// Substitute only the Explorer endpoint; windows, messages, resources and
+// retry timers remain native. No icons or settings touch the user's taskbar.
+namespace {
+bool shellAvailable=true,shellHasIcon=false;
+int shellCalls=0;
+NOTIFYICONDATA shellIcon={};
+}
+BOOL WINAPI VimekTestNotifyIcon(DWORD operation, PNOTIFYICONDATA data) {
+    ++shellCalls;
+    if(operation==NIM_DELETE){shellHasIcon=false;return TRUE;}
+    if(!shellAvailable)return FALSE;
+    if(operation==NIM_ADD){if(shellHasIcon)return FALSE;shellHasIcon=true;}
+    if(operation==NIM_MODIFY&&!shellHasIcon)return FALSE;
+    shellIcon=*data;
+    return TRUE;
+}
+
 INT_PTR CALLBACK DialogProc(HWND,UINT,WPARAM,LPARAM);
 namespace {
 int failures=0,commands=0;
@@ -17,6 +34,58 @@ void pump() {
     while(PeekMessage(&message,nullptr,0,0,PM_REMOVE)) {
         TranslateMessage(&message);DispatchMessage(&message);
     }
+}
+void checkTrayMode(int language) {
+    int resource=language?IDI_ICON_STATUS_VIET:IDI_ICON_STATUS_ENG;
+    HICON expected=(HICON)LoadImage(GetModuleHandle(nullptr),MAKEINTRESOURCE(resource),IMAGE_ICON,
+        GetSystemMetrics(SM_CXSMICON),GetSystemMetrics(SM_CYSMICON),LR_SHARED);
+    check(shellHasIcon&&shellIcon.hIcon==expected,"Tray V/E matches the engine mode");
+    wchar_t tip[128]={};
+    LoadString(GetModuleHandle(nullptr),language?IDS_TRAY_TITLE_2:IDS_TRAY_TITLE,tip,128);
+    check(wcscmp(shellIcon.szTip,tip)==0,"Tray tooltip matches the engine mode");
+}
+void testTrayRecovery() {
+    int savedLanguage=vLanguage,savedGray=vUseGrayIcon,savedSmart=vUseSmartSwitchKey,savedCode=vCodeTable;
+    vLanguage=1;vUseGrayIcon=0;vUseSmartSwitchKey=1;
+    SystemTrayHelper::createSystemTrayIcon(GetModuleHandle(nullptr));pump();
+    HWND owner=FindWindow(APP_CLASS,nullptr);
+    check(owner!=nullptr,"Tray owns a hidden native window");
+    checkTrayMode(1);
+    // The mode and encoding share one persisted byte. English must remain
+    // zero even when a non-Unicode encoding is restored for another app.
+    for(int code=0;code<5;++code) {
+        vCodeTable=code;
+        for(int language:{0,1,0,1}) {
+            setAppInputMethodStatus("vimek-tray-regression",language|(code<<1));
+            int status=getAppInputMethodStatus("vimek-tray-regression",0);
+            VimekManager::restoreAppLanguage(status);
+            check(vLanguage==language,"App-mode restore cannot treat encoding bits as Vietnamese");
+            int calls=shellCalls;
+            SystemTrayHelper::requestUpdate();
+            check(shellCalls==calls,"Hotkey refresh does not call Explorer synchronously");
+            pump();checkTrayMode(language);
+        }
+    }
+    vLanguage=0;
+    check(!VimekManager::restoreAppLanguage(-1)&&vLanguage==0,"Unknown app keeps the current language");
+    vUseSmartSwitchKey=0;
+    check(!VimekManager::restoreAppLanguage(1)&&vLanguage==0,"Disabled app memory keeps English active");
+    // Explorer unavailable: the submitted icon may be stale, but retries
+    // must use the latest mode after any number of changes, without clicks.
+    shellAvailable=false;vLanguage=0;SystemTrayHelper::requestUpdate();pump();
+    vLanguage=1;
+    shellAvailable=true;
+    Sleep(1100);pump();checkTrayMode(1);
+    // Explorer restarts while a different mode is active. Recreate from the
+    // current state instead of re-adding the last successfully displayed V.
+    shellHasIcon=false;vLanguage=0;
+    SendMessage(owner,RegisterWindowMessage(L"TaskbarCreated"),0,0);pump();checkTrayMode(0);
+    shellHasIcon=false;shellAvailable=false;vLanguage=1;
+    SendMessage(owner,RegisterWindowMessage(L"TaskbarCreated"),0,0);pump();
+    vLanguage=0;shellAvailable=true;Sleep(1100);pump();checkTrayMode(0);
+    SystemTrayHelper::removeSystemTray();pump();
+    check(!shellHasIcon&&!IsWindow(owner),"Shutdown removes the icon and retry owner");
+    vLanguage=savedLanguage;vUseGrayIcon=savedGray;vUseSmartSwitchKey=savedSmart;vCodeTable=savedCode;
 }
 LRESULT CALLBACK observeCommands(HWND window,UINT message,WPARAM wp,LPARAM lp,UINT_PTR,DWORD_PTR) {
     // Exercise native input without saving test choices to user preferences.
@@ -251,7 +320,8 @@ int main() {
     testAdvancedDialog();
     testConvertGroups();
     testDashboard();
+    testTrayRecovery();
     SetThreadDesktop(previous);CloseDesktop(desktop);
-    std::cout<<"Dashboard shortcuts and system toggles, grouped controls and 20 native tab switches; "<<failures<<" failures\n";
+    std::cout<<"Tray recovery and app-mode synchronization, dashboard controls and 20 native tab switches; "<<failures<<" failures\n";
     return failures?1:0;
 }

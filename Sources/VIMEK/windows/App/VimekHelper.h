@@ -24,6 +24,7 @@ public:
 	static LPTSTR getExecutePath();
 
 	static string& getFrontMostAppExecuteName();
+	static string& getForegroundAppExecuteName();
 	static string& getLastAppExecuteName();
 
 	static wstring getFullPath();

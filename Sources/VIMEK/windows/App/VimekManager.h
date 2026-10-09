@@ -13,6 +13,7 @@ public:
 
 	static void initEngine();
 	static void freeEngine();
+	static bool restoreAppLanguage(int savedStatus);
 
 	static bool checkUpdate(string& newVersion);
 

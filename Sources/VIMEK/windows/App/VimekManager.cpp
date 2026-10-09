@@ -42,6 +42,15 @@ void VimekManager::freeEngine() {
 	VimekFree();
 }
 
+bool VimekManager::restoreAppLanguage(int savedStatus) {
+	if (!vUseSmartSwitchKey || savedStatus < 0) return false;
+	// Higher bits store the character encoding, not the language mode.
+	int language = savedStatus & 1;
+	if (language == vLanguage) return false;
+	vLanguage = language;
+	return true;
+}
+
 bool VimekManager::checkUpdate(string& newVersion) {
 	// VIMEK has no release feed yet; never fetch or install Vimek updates.
 	newVersion.clear();

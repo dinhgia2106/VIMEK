@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-alpha.7
+
+- Sửa đồng bộ chế độ Việt/Anh và biểu tượng tray trên Windows; thử lại khi Shell chưa sẵn sàng và khôi phục từ trạng thái hiện tại khi Explorer khởi động lại.
+- Đưa cập nhật tray ra khỏi callback bàn phím để phím chuyển không phải chờ Explorer.
+- Sửa nhớ chế độ theo ứng dụng lấy nhầm bit bảng mã; giữ chế độ khi taskbar hoặc cửa sổ VIMEK nhận focus.
+
 ## 0.1.0-alpha.6
 
 - Thêm bản Linux với engine IBus, Unicode, Telex, VNI và hai biến thể Simple Telex.

@@ -149,7 +149,7 @@ void AppDelegate::onInputMethodChangedFromHotKey() {
 	if (mainDialog) {
 		mainDialog->fillData();
 	}
-	SystemTrayHelper::updateData();
+	SystemTrayHelper::requestUpdate();
 }
 
 void AppDelegate::onDefaultConfig() {
@@ -189,17 +189,15 @@ void AppDelegate::onDefaultConfig() {
 
 void AppDelegate::onToggleVietnamese() {
 	APP_SET_DATA(vLanguage, vLanguage ? 0 : 1);
-	if (HAS_BEEP(vSwitchKeyStatus)) MessageBeep(MB_OK);
 	startNewSession();
-	if (mainDialog) {
-		mainDialog->fillData();
-	}
-	
 	if (vUseSmartSwitchKey) {
 		string& exe = VimekHelper::getLastAppExecuteName();
 		setAppInputMethodStatus(exe, vLanguage | (vCodeTable << 1));
 		saveSmartSwitchKeyData();
 	}
+	if (HAS_BEEP(vSwitchKeyStatus)) MessageBeep(MB_OK);
+	if (mainDialog) mainDialog->fillData();
+	SystemTrayHelper::requestUpdate();
 }
 
 void AppDelegate::onToggleCheckSpelling() {

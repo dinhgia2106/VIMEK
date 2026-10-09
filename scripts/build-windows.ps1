@@ -35,7 +35,7 @@ try {
     $vimekSources = @(Get-ChildItem $vimekWin -Filter '*.cpp' | ForEach-Object FullName)
     $vimekLibraries = @('-lcomctl32','-lcomdlg32','-lshell32','-lole32','-luuid','-lversion','-lurlmon','-luxtheme','-limm32','-lpsapi','-lgdiplus','-ldwmapi','-lgdi32')
     $vimekUiSources = @($vimekSources | Where-Object { (Split-Path -Leaf $_) -ne 'main.cpp' })
-    & $vimekCompiler @vimekFlags "-I$vimekWin" @vimekEngine @vimekUiSources 'tests/windows_ui_tests.cpp' "build/$Platform/vimek.res" '-o' "build/$Platform/windows_ui_tests.exe" @vimekLibraries
+    & $vimekCompiler @vimekFlags '-DVIMEK_TRAY_TESTING' "-I$vimekWin" @vimekEngine @vimekUiSources 'tests/windows_ui_tests.cpp' "build/$Platform/vimek.res" '-o' "build/$Platform/windows_ui_tests.exe" @vimekLibraries
     if ($LASTEXITCODE -ne 0) { throw 'Windows UI test compilation failed.' }
     foreach ($vimekTheme in @('--preview-dark','--preview-light')) {
         & "./build/$Platform/windows_ui_tests.exe" $vimekTheme

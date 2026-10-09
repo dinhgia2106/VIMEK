@@ -70,6 +70,7 @@ void VimekFree() {
 
 void VimekInit() {
 	APP_GET_DATA(vLanguage, 1);
+	if (vLanguage != 0 && vLanguage != 1) { APP_SET_DATA(vLanguage, vLanguage & 1); }
 	APP_GET_DATA(vInputType, 0);
 	vFreeMark = 0;
 	APP_GET_DATA(vCodeTable, 0);
@@ -413,14 +414,13 @@ void switchLanguage() {
 		vLanguage = 1;
 	else
 		vLanguage = 0;
-	if (HAS_BEEP(vSwitchKeyStatus))
-		MessageBeep(MB_OK);
-	AppDelegate::getInstance()->onInputMethodChangedFromHotKey();
 	if (vUseSmartSwitchKey) {
 		setAppInputMethodStatus(VimekHelper::getFrontMostAppExecuteName(), vLanguage | (vCodeTable << 1));
 		saveSmartSwitchKeyData();
 	}
 	startNewSession();
+	if (HAS_BEEP(vSwitchKeyStatus)) MessageBeep(MB_OK);
+	AppDelegate::getInstance()->onInputMethodChangedFromHotKey();
 }
 
 static void SendPureCharacter(const Uint16& ch) {
@@ -705,19 +705,16 @@ LRESULT CALLBACK mouseHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 VOID CALLBACK winEventProcCallback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent, HWND hwnd, LONG idObject, LONG idChild, DWORD dwEventThread, DWORD dwmsEventTime) {
 	//smart switch key
 	if (vUseSmartSwitchKey || vRememberCode) {
-		string& exe = VimekHelper::getFrontMostAppExecuteName();
-		if (exe.compare("explorer.exe") == 0) //dont apply with windows explorer
+		string exe = VimekHelper::getForegroundAppExecuteName();
+		if (_stricmp(exe.c_str(), "explorer.exe") == 0 || exe == "UnknownProgram")
 			return;
+		// Keep the last input app current even when no key has been typed yet.
+		VimekHelper::getFrontMostAppExecuteName();
 		_languageTemp = getAppInputMethodStatus(exe, vLanguage | (vCodeTable << 1));
 		vTempOffEngine(false);
-		if (vUseSmartSwitchKey && (_languageTemp & 0x01) != vLanguage) {
-			if (_languageTemp != -1) {
-				vLanguage = _languageTemp;
-				AppDelegate::getInstance()->onInputMethodChangedFromHotKey();
-			} else {
-				saveSmartSwitchKeyData();
-			}
-		}
+		if (VimekManager::restoreAppLanguage(_languageTemp))
+			AppDelegate::getInstance()->onInputMethodChangedFromHotKey();
+		if (_languageTemp == -1) saveSmartSwitchKeyData();
 		startNewSession();
 		if (vRememberCode && (_languageTemp >> 1) != vCodeTable) { //for remember table code feature
 			if (_languageTemp != -1) {

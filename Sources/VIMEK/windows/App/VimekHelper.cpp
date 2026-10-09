@@ -20,11 +20,8 @@ static LPCTSTR _runOnStartupKeyPath = _T("Software\\Microsoft\\Windows\\CurrentV
 static TCHAR _executePath[MAX_PATH];
 static bool _hasGetPath = false;
 
-static DWORD _cacheProcessId = 0, _tempProcessId = 0;
-static HWND _tempWnd;
-static TCHAR _exePath[1024] = { 0 };
-static LPCTSTR _exeName = _exePath;
-static HANDLE _proc;
+static DWORD _cacheProcessId = 0;
+static string _foregroundExeName;
 static string _exeNameUtf8 = "TheVIMEKProject";
 static string _unknownProgram = "UnknownProgram";
 
@@ -135,32 +132,37 @@ LPTSTR VimekHelper::getExecutePath() {
 	return _executePath;
 }
 
-string& VimekHelper::getFrontMostAppExecuteName() {
-	_tempWnd = GetForegroundWindow();
-	GetWindowThreadProcessId(_tempWnd, &_tempProcessId);
-	if (_tempProcessId == _cacheProcessId) {
-		return _exeNameUtf8;
-	}
-	_cacheProcessId = _tempProcessId;
-	_proc = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, _tempProcessId);
-	GetProcessImageFileName((HMODULE)_proc, _exePath, 1024);
-	CloseHandle(_proc);
+string& VimekHelper::getForegroundAppExecuteName() {
+	DWORD processId = 0;
+	GetWindowThreadProcessId(GetForegroundWindow(), &processId);
+	if (!processId) return _unknownProgram;
+	if (processId == _cacheProcessId) return _foregroundExeName;
+	HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, processId);
+	if (!process) return _unknownProgram;
+	wchar_t path[32768] = {};
+	DWORD length = sizeof(path) / sizeof(path[0]);
+	BOOL found = QueryFullProcessImageNameW(process, 0, path, &length);
+	CloseHandle(process);
+	if (!found) return _unknownProgram;
+	const wchar_t* name = wcsrchr(path, L'\\');
+	name = name ? name + 1 : path;
+	int bytes = WideCharToMultiByte(CP_UTF8, 0, name, -1, nullptr, 0, nullptr, nullptr);
+	if (bytes <= 1) return _unknownProgram;
+	string result(bytes, '\0');
+	WideCharToMultiByte(CP_UTF8, 0, name, -1, &result[0], bytes, nullptr, nullptr);
+	result.pop_back();
+	_foregroundExeName = result;
+	_cacheProcessId = processId;
+	return _foregroundExeName;
+}
 
-	if (wcscmp(_exePath, _T("")) == 0) {
-		return _unknownProgram;
-	}
-	_exeName = _tcsrchr(_exePath, '\\') + 1;
-	if (wcscmp(_exeName, _T("VIMEK64.exe")) == 0 ||
-		wcscmp(_exeName, _T("VIMEK32.exe")) == 0 ||
-		wcscmp(_exeName, _T("VIMEK.exe")) == 0 ||
-		wcscmp(_exeName, _T("explorer.exe")) == 0) {
-		return _exeNameUtf8;
-	}
-	int size_needed = WideCharToMultiByte(CP_UTF8, 0, _exeName, (int)lstrlen(_exeName), NULL, 0, NULL, NULL);
-	std::string strTo(size_needed, 0);
-	WideCharToMultiByte(CP_UTF8, 0, _exeName, (int)lstrlen(_exeName), &strTo[0], size_needed, NULL, NULL);
-	_exeNameUtf8 = strTo;
-	//LOG(L"%s\n", utf8ToWideString(_exeNameUtf8).c_str());
+string& VimekHelper::getFrontMostAppExecuteName() {
+	string& foreground = getForegroundAppExecuteName();
+	if (foreground == _unknownProgram) return _unknownProgram;
+	// Tray and VIMEK windows retain the last input app for explicit UI choices,
+	// but must remain identifiable to the foreground-change handler.
+	if (_cacheProcessId != GetCurrentProcessId() && _stricmp(foreground.c_str(), "explorer.exe") != 0)
+		_exeNameUtf8 = foreground;
 	return _exeNameUtf8;
 }
 

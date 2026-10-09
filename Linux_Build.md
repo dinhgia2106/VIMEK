@@ -14,7 +14,7 @@ or the [website](https://dinhgia2106.github.io/VIMEK/). The package is built on 
 use a compatible x86-64 system with IBus 1.5.20 or later.
 
 ```bash
-sudo apt install ./VIMEK-0.1.0-alpha.6-Linux-amd64.deb
+sudo apt install ./VIMEK-0.1.0-alpha.7-Linux-amd64.deb
 ```
 
 Log out and back in so IBus discovers the new engine. In GNOME/Ubuntu, open
@@ -49,7 +49,7 @@ bash scripts/build-linux.sh
 sudo apt install ./dist/linux/VIMEK-0.1.0-Linux-amd64.deb
 ```
 
-For a release package, pass the version: `bash scripts/build-linux.sh 0.1.0-alpha.6`.
+For a release package, pass the version: `bash scripts/build-linux.sh 0.1.0-alpha.7`.
 The script builds, runs the engine/composition tests, and creates a `.deb` in `dist/linux`.
 
 Other distributions can build with CMake, IBus development headers, GLib, and

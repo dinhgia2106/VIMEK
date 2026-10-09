@@ -7,6 +7,8 @@
 
 #define WM_TRAYMESSAGE (WM_USER + 1)
 #define TRAY_ICONUID 100
+#define WM_REFRESH_TRAY (WM_APP + 20)
+#define TRAY_RETRY_TIMER 101
 
 #define POPUP_VIET_ON_OFF 900
 #define POPUP_SPELLING 901
@@ -43,6 +45,17 @@ static HMENU menuInputType, codeMenu, settingsMenu, toolsMenu;
 static HMENU otherCode;
 
 static NOTIFYICONDATA nid;
+static bool iconAdded = false;
+#ifdef VIMEK_TRAY_TESTING
+extern BOOL WINAPI VimekTestNotifyIcon(DWORD, PNOTIFYICONDATA);
+#endif
+static BOOL notifyIcon(DWORD message) {
+#ifdef VIMEK_TRAY_TESTING
+	return VimekTestNotifyIcon(message, &nid);
+#else
+	return Shell_NotifyIcon(message, &nid);
+#endif
+}
 
 map<UINT, LPCTSTR> menuData = {
 	{POPUP_VIET_ON_OFF, _T("Bật Tiếng Việt")},
@@ -72,9 +85,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 	switch (message) {
 	case WM_CREATE:
 		taskbarCreated = RegisterWindowMessage(_T("TaskbarCreated"));
+		// Explorer runs at normal integrity even when VIMEK is elevated.
+		ChangeWindowMessageFilterEx(hWnd, taskbarCreated, MSGFLT_ALLOW, nullptr);
+		ChangeWindowMessageFilterEx(hWnd, WM_TRAYMESSAGE, MSGFLT_ALLOW, nullptr);
 		break;
 	case WM_USER+2019:
 		AppDelegate::getInstance()->onControlPanel();
+		break;
+	case WM_REFRESH_TRAY:
+		SystemTrayHelper::updateData();
+		break;
+	case WM_TIMER:
+		if (wParam == TRAY_RETRY_TIMER) SystemTrayHelper::updateData();
 		break;
 	case WM_TRAYMESSAGE: {
 		if (lParam == WM_LBUTTONDBLCLK) {
@@ -162,7 +184,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 	default:
 		// if the taskbar is restarted, add the system tray icon again
 		if (message == taskbarCreated) {
-			Shell_NotifyIcon(NIM_ADD, &nid);
+			iconAdded = false;
+			SystemTrayHelper::updateData();
+			return 0;
 		}
 		return DefWindowProc(hWnd, message, wParam, lParam);
 	}
@@ -235,7 +259,15 @@ static void loadTrayIcon() {
 
 void SystemTrayHelper::updateData() {
 	loadTrayIcon();
-	Shell_NotifyIcon(NIM_MODIFY, &nid);
+	if (nid.hWnd) {
+		// A hidden taskbar or Explorer restart must not leave an old mode in
+		// the Shell. Retry from the current engine state, never an old snapshot.
+		bool updated = iconAdded && notifyIcon(NIM_MODIFY);
+		if (!updated) updated = notifyIcon(NIM_ADD) || notifyIcon(NIM_MODIFY);
+		iconAdded = updated;
+		if (updated) KillTimer(nid.hWnd, TRAY_RETRY_TIMER);
+		else SetTimer(nid.hWnd, TRAY_RETRY_TIMER, 1000, nullptr);
+	}
 
 	MODIFY_MENU(popupMenu, POPUP_VIET_ON_OFF, vLanguage);
 	MODIFY_MENU(settingsMenu, POPUP_SPELLING, vCheckSpelling);
@@ -295,6 +327,11 @@ void SystemTrayHelper::updateData() {
 	ModifyMenu(toolsMenu, POPUP_QUICK_CONVERT, MF_BYCOMMAND | MF_UNCHECKED, POPUP_QUICK_CONVERT, hotKeyString.c_str());
 }
 
+void SystemTrayHelper::requestUpdate() {
+	// Keep synchronous Explorer calls outside the low-level keyboard hook.
+	if (nid.hWnd) PostMessage(nid.hWnd, WM_REFRESH_TRAY, 0, 0);
+}
+
 static HINSTANCE ins;
 static int recreateCount = 0;
 
@@ -321,17 +358,10 @@ void SystemTrayHelper::_createSystemTrayIcon(const HINSTANCE& hIns) {
 	nid.uVersion = NOTIFYICON_VERSION;
 	nid.uCallbackMessage = WM_TRAYMESSAGE;
 	loadTrayIcon();
-	LoadString(ins, IDS_APP_TITLE, nid.szTip, 128);
 	nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
 
-	// Shell_NotifyIcon may fail if the system tray icon is not fully initialized
-	const int maxRetries = 5;
-	for (int attempt = 0; attempt < maxRetries; ++attempt) {
-		if (Shell_NotifyIcon(NIM_ADD, &nid)) {
-			break;
-		}
-		Sleep(1000);
-	}
+	iconAdded = false;
+	updateData();
 }
 
 
@@ -345,5 +375,13 @@ void SystemTrayHelper::createSystemTrayIcon(const HINSTANCE& hIns) {
 }
 
 void SystemTrayHelper::removeSystemTray() {
-	Shell_NotifyIcon(NIM_DELETE, &nid);
+	if (nid.hWnd) {
+		KillTimer(nid.hWnd, TRAY_RETRY_TIMER);
+		notifyIcon(NIM_DELETE);
+		DestroyWindow(nid.hWnd);
+	}
+	nid = {};
+	iconAdded = false;
+	if (popupMenu) DestroyMenu(popupMenu);
+	popupMenu = menuInputType = codeMenu = settingsMenu = toolsMenu = otherCode = nullptr;
 }
