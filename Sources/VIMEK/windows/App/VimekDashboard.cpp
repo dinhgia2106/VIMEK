@@ -12,15 +12,15 @@ using namespace Gdiplus;
 enum { VI=7000, EN, METHOD0, METHOD1, METHOD2, METHOD3, ADMIN, STARTUP, MACRO, ADVANCED, CONVERT, HOTKEY };
 struct Control {int id;const wchar_t* title;int x,y,width,height;};
 static const Control controls[]={
-    {VI,L"Tiếng Việt",32,140,302,40},{EN,L"English",346,140,302,40},
-    {METHOD0,L"Telex",32,228,145,40},{METHOD1,L"VNI",189,228,145,40},
-    {METHOD2,L"Simple Telex 1",346,228,145,40},{METHOD3,L"Simple Telex 2",503,228,145,40},
-    {HOTKEY,L"Ctrl + Alt",456,327,192,36},{ADMIN,L"Tắt",558,385,90,36},{STARTUP,L"Tắt",558,434,90,36},
-    {MACRO,L"Gõ tắt",32,499,192,36},{CONVERT,L"Chuyển mã",236,499,192,36},{ADVANCED,L"Nâng cao",440,499,208,36}
+    {VI,L"Tiếng Việt",32,76,302,40},{EN,L"English",346,76,302,40},
+    {METHOD0,L"Telex",32,164,145,40},{METHOD1,L"VNI",189,164,145,40},
+    {METHOD2,L"Simple Telex 1",346,164,145,40},{METHOD3,L"Simple Telex 2",503,164,145,40},
+    {HOTKEY,L"Ctrl + Alt",456,263,192,36},{ADMIN,L"Tắt",558,321,90,36},{STARTUP,L"Tắt",558,370,90,36},
+    {MACRO,L"Gõ tắt",32,435,192,36},{CONVERT,L"Chuyển mã",236,435,192,36},{ADVANCED,L"Nâng cao",440,435,208,36}
 };
 static COLORREF rgb(bool dark, COLORREF light, COLORREF night) { return dark ? night : light; }
 VimekDashboard::~VimekDashboard() {
-    DeleteObject(bodyFont); DeleteObject(labelFont); DeleteObject(titleFont); DeleteObject(background);
+    DeleteObject(bodyFont); DeleteObject(labelFont); DeleteObject(background);
 }
 void VimekDashboard::updateTheme() {
     dark = vimekUsesDarkTheme();
@@ -50,23 +50,22 @@ void VimekDashboard::paint(HDC dc, RECT client) {
     text(dc,L"V I M E K",32,20,500,30,labelFont,ink);
     // An outlined glyph, drawn as a native vector rather than a font bitmap.
     Graphics g(dc);g.SetSmoothingMode(SmoothingModeAntiAlias);
-    Color color(255,GetRValue(ink),GetGValue(ink),GetBValue(ink));Pen pen(color,1.6f*scale);
+    Color color(255,GetRValue(ink),GetGValue(ink),GetBValue(ink));Pen pen(color,1.2f*scale);
     GraphicsPath path;
     PointF v[]={{14,13},{23,13},{32,40},{41,13},{50,13},{36,51},{28,51}};
     PointF e[]={{17,13},{48,13},{48,20},{25,20},{25,29},{45,29},{45,36},{25,36},{25,44},{48,44},{48,51},{17,51}};
     path.AddPolygon(vLanguage?v:e,vLanguage?7:12);
-    Matrix m; m.Scale(1.45f*scale,1.45f*scale);m.Translate(24*scale,48*scale,MatrixOrderAppend);path.Transform(&m);g.DrawPath(&pen,&path);
-    text(dc,vLanguage?L"Tiếng Việt":L"English",130,65,400,43,titleFont,ink);
-    text(dc,L"KIỂU GÕ",32,194,600,24,labelFont,muted);
+    Matrix m; m.Scale(.8f*scale,.8f*scale);m.Translate(608*scale,9.4f*scale,MatrixOrderAppend);path.Transform(&m);g.DrawPath(&pen,&path);
+    text(dc,L"KIỂU GÕ",32,130,600,24,labelFont,muted);
     const wchar_t* sample = vInputType==1?L"Ví dụ: tie6ng1 Vie6t5 → tiếng Việt":L"Ví dụ: tieengs Vieetj → tiếng Việt";
-    text(dc,sample,32,273,610,26,bodyFont,muted);
-    text(dc,L"Phím chuyển Việt / Anh",32,331,350,28,bodyFont,ink);
-    text(dc,L"Chạy với quyền Admin",32,388,350,28,bodyFont,ink);
-    text(dc,L"Khởi động cùng Windows",32,437,420,28,bodyFont,ink);
+    text(dc,sample,32,209,610,26,bodyFont,muted);
+    text(dc,L"Phím chuyển Việt / Anh",32,267,350,28,bodyFont,ink);
+    text(dc,L"Chạy với quyền Admin",32,324,350,28,bodyFont,ink);
+    text(dc,L"Khởi động cùng Windows",32,373,420,28,bodyFont,ink);
     const wchar_t* codes[]={L"Unicode",L"TCVN3",L"VNI Windows",L"Unicode tổ hợp",L"CP1258"};
-    text(dc,codes[(vCodeTable>=0&&vCodeTable<5)?vCodeTable:0],32,560,610,22,bodyFont,muted);
+    text(dc,codes[(vCodeTable>=0&&vCodeTable<5)?vCodeTable:0],32,496,610,22,bodyFont,muted);
     HPEN p=CreatePen(PS_SOLID,1,line);auto old=SelectObject(dc,p);
-    for(int y:{318,374,483,548}){MoveToEx(dc,int(32*scale),int(y*scale),nullptr);LineTo(dc,int(648*scale),int(y*scale));}
+    for(int y:{254,310,419,484}){MoveToEx(dc,int(32*scale),int(y*scale),nullptr);LineTo(dc,int(648*scale),int(y*scale));}
     SelectObject(dc,old);DeleteObject(p);
 }
 void VimekDashboard::drawButton(const DRAWITEMSTRUCT* item, const wchar_t* suppliedLabel) {
@@ -111,7 +110,7 @@ INT_PTR VimekDashboard::eventProc(HWND window,UINT message,WPARAM wp,LPARAM lp) 
         HDC windowDc=GetDC(window);
         scale=(windowDpi?windowDpi(window):GetDeviceCaps(windowDc,LOGPIXELSX))/96.f;
         ReleaseDC(window,windowDc);
-        RECT desired={0,0,int(680*scale),int(596*scale)};
+        RECT desired={0,0,int(680*scale),int(532*scale)};
         AdjustWindowRectEx(&desired,(DWORD)GetWindowLongPtr(window,GWL_STYLE),FALSE,(DWORD)GetWindowLongPtr(window,GWL_EXSTYLE));
         MONITORINFO monitor={sizeof(MONITORINFO)};GetMonitorInfo(MonitorFromWindow(window,MONITOR_DEFAULTTONEAREST),&monitor);
         int width=desired.right-desired.left,height=desired.bottom-desired.top;
@@ -120,7 +119,6 @@ INT_PTR VimekDashboard::eventProc(HWND window,UINT message,WPARAM wp,LPARAM lp) 
         RECT r;GetClientRect(window,&r);scale=float(r.right)/680;
         bodyFont=CreateFontW(-int(15*scale),0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY,DEFAULT_PITCH,L"Segoe UI");
         labelFont=CreateFontW(-int(13*scale),0,0,0,FW_SEMIBOLD,FALSE,FALSE,FALSE,DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY,DEFAULT_PITCH,L"Segoe UI");
-        titleFont=CreateFontW(-int(34*scale),0,0,0,FW_SEMIBOLD,FALSE,FALSE,FALSE,DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY,DEFAULT_PITCH,L"Segoe UI");
         static ULONG_PTR token=0;if(!token){GdiplusStartupInput input;GdiplusStartup(&token,&input,nullptr);}
         updateTheme();SET_DIALOG_ICON(IDI_APP_ICON);
         for(const auto& c:controls)button(c.id,c.title,c.x,c.y,c.width,c.height);
@@ -163,9 +161,8 @@ bool VimekDashboard::renderPreview(bool night, const wchar_t* path) {
         panel.background=CreateSolidBrush(rgb(night,RGB(248,249,251),RGB(19,21,25)));
         panel.bodyFont=CreateFontW(-15,0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY,DEFAULT_PITCH,L"Segoe UI");
         panel.labelFont=CreateFontW(-13,0,0,0,FW_SEMIBOLD,FALSE,FALSE,FALSE,DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY,DEFAULT_PITCH,L"Segoe UI");
-        panel.titleFont=CreateFontW(-34,0,0,0,FW_SEMIBOLD,FALSE,FALSE,FALSE,DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY,DEFAULT_PITCH,L"Segoe UI");
-        Bitmap bitmap(680,596,PixelFormat32bppARGB);Graphics g(&bitmap);g.Clear(Color::White);HDC dc=g.GetHDC();
-        RECT client={0,0,680,596};panel.paint(dc,client);
+        Bitmap bitmap(680,532,PixelFormat32bppARGB);Graphics g(&bitmap);g.Clear(Color::White);HDC dc=g.GetHDC();
+        RECT client={0,0,680,532};panel.paint(dc,client);
         for(const auto& c:controls){DRAWITEMSTRUCT item={};item.CtlID=c.id;item.hDC=dc;item.rcItem={c.x,c.y,c.x+c.width,c.y+c.height};panel.drawButton(&item,c.title);}
         g.ReleaseHDC(dc);
         const CLSID png={0x557cf406,0x1a04,0x11d3,{0x9a,0x73,0x00,0x00,0xf8,0x1e,0xf3,0x2e}};

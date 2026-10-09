@@ -4,7 +4,7 @@
 class VimekDashboard : public BaseDialog {
     bool dark = false;
     float scale = 1;
-    HFONT bodyFont = nullptr, labelFont = nullptr, titleFont = nullptr;
+    HFONT bodyFont = nullptr, labelFont = nullptr;
     HBRUSH background = nullptr;
     void updateTheme();
     void paint(HDC dc, RECT client);

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.0-alpha.5
+
+- Thu gọn bảng điều khiển trên Windows và macOS: bỏ tên ngôn ngữ lặp lại ở đầu cửa sổ, đưa biểu tượng V/E viền mảnh sang bên phải, cùng hàng với VIMEK.
+
 ## 0.1.0-alpha.4
 
 - Bấm nút phím chuyển trên Windows để đổi giữa Ctrl+Alt và Ctrl+Shift, áp dụng ngay và giữ lựa chọn âm thanh.
