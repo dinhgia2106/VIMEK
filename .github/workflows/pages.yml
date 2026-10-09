@@ -1,0 +1,66 @@
+name: VIMEK website
+on:
+  push:
+    branches: [main]
+    paths:
+      [
+        "site/**",
+        "scripts/build-site.mjs",
+        "docs/images/**",
+        ".github/workflows/pages.yml",
+      ]
+  pull_request:
+    paths:
+      [
+        "site/**",
+        "scripts/build-site.mjs",
+        "docs/images/**",
+        ".github/workflows/pages.yml",
+      ]
+  release:
+    types: [published, edited]
+  workflow_run:
+    workflows: ["VIMEK build and tests"]
+    types: [completed]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.ref || 'main' }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Build website with current release downloads
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node --check site/app.js
+          node scripts/build-site.mjs
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: build/site
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

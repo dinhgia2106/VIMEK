@@ -23,7 +23,8 @@ Vietnamese and English easy.
 
 ## Download
 
-Download a build from [GitHub Releases](https://github.com/dinhgia2106/VIMEK/releases).
+Download VIMEK from the [website](https://dinhgia2106.github.io/VIMEK/)
+or [GitHub Releases](https://github.com/dinhgia2106/VIMEK/releases).
 
 - **Windows:** choose x64 or x86, extract the ZIP, and run VIMEK.
 - **macOS:** the universal build supports Intel and Apple Silicon on macOS 11 or later. Extract the ZIP and move VIMEK to **Applications**.

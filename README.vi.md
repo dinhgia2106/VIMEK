@@ -22,7 +22,8 @@ tự theo chế độ sáng/tối của hệ điều hành và thao tác chuyể
 
 ## Tải về
 
-Tải bản build tại [GitHub Releases](https://github.com/dinhgia2106/VIMEK/releases).
+Tải VIMEK tại [trang web](https://dinhgia2106.github.io/VIMEK/?lang=vi)
+hoặc [GitHub Releases](https://github.com/dinhgia2106/VIMEK/releases).
 
 - **Windows:** chọn x64 hoặc x86, giải nén ZIP và chạy VIMEK.
 - **macOS:** bản universal hỗ trợ Intel và Apple Silicon từ macOS 11 trở lên. Giải nén ZIP và đưa VIMEK vào **Applications**.
