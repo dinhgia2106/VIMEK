@@ -24,6 +24,15 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 		AppDelegate preview;
 		return preview.runPreview(hInstance);
 	}
+	if (wcsncmp(lpCmdLine, L"--restart-from ", 15) == 0) {
+		DWORD previousId = wcstoul(lpCmdLine + 15, nullptr, 10);
+		HANDLE previous = OpenProcess(SYNCHRONIZE, FALSE, previousId);
+		if (previous) {
+			DWORD result = WaitForSingleObject(previous, 10000);
+			CloseHandle(previous);
+			if (result != WAIT_OBJECT_0) return 1;
+		}
+	}
 	
 #if NDEBUG
 	//check the program is run as administrator mode

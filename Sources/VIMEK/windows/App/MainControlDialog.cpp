@@ -451,8 +451,7 @@ void MainControlDialog::onCheckboxClicked(const HWND& hWnd) {
     }
     else if (hWnd == checkRunWithWindows) {
         val = (int)SendMessage(hWnd, BM_GETCHECK, 0, 0);
-        APP_SET_DATA(vRunWithWindows, val ? 1 : 0);
-        VimekHelper::registerRunOnStartup(vRunWithWindows);
+        AppDelegate::getInstance()->onRunWithWindows(val != 0);
     }
     else if (hWnd == checkSpelling) {
         val = (int)SendMessage(hWnd, BM_GETCHECK, 0, 0);
@@ -527,8 +526,7 @@ void MainControlDialog::onCheckboxClicked(const HWND& hWnd) {
     }
     else if (hWnd == checkRunAsAdmin) {
         val = (int)SendMessage(hWnd, BM_GETCHECK, 0, 0);
-        APP_SET_DATA(vRunAsAdmin, val ? 1 : 0);
-        requestRestartAsAdmin();
+        AppDelegate::getInstance()->onRunAsAdmin(val != 0, hDlg);
     }
     else if (hWnd == checkCheckNewVersion) {
         val = (int)SendMessage(hWnd, BM_GETCHECK, 0, 0);
@@ -596,23 +594,4 @@ void MainControlDialog::onTabIndexChanged() {
 
 void MainControlDialog::onUpdateButton() {
 	MessageBox(hDlg, _T("VIMEK 0.1.0 chưa có kênh cập nhật. Hãy dùng bản build từ mã nguồn VIMEK."), _T("VIMEK"), MB_OK | MB_ICONINFORMATION);
-}
-
-void MainControlDialog::requestRestartAsAdmin() {
-    VimekHelper::registerRunOnStartup(false);
-    if (vRunAsAdmin && !IsUserAnAdmin()) {
-        int msgboxID = MessageBox(
-            hDlg,
-            _T("Bạn cần phải khởi động lại VIMEK để kích hoạt chế độ Admin!\nBạn có muốn khởi động lại VIMEK không?"),
-            _T("VIMEK"),
-            MB_ICONEXCLAMATION | MB_YESNO
-        );
-        if (msgboxID == IDYES) {
-            PostQuitMessage(0);
-            ShellExecute(0, L"runas", VimekHelper::getFullPath().c_str(), 0, 0, SW_SHOWNORMAL);
-        }
-    }
-    else {
-        VimekHelper::registerRunOnStartup(vRunWithWindows);
-    }
 }

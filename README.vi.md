@@ -42,6 +42,11 @@ Phím chuyển mặc định là **Ctrl+Alt** trên Windows, **Control+Option** 
 Giữ Ctrl/Control, bấm rồi thả Alt/Option để chuyển; có thể bấm nhiều lần
 khi vẫn giữ Ctrl/Control. Thay đổi phím tắt hoặc tắt âm thanh tại **Nâng cao**.
 
+Trên Windows, bấm nút phím chuyển trong bảng điều khiển để đổi qua lại giữa
+**Ctrl+Alt** và **Ctrl+Shift**; thay đổi có hiệu lực ngay.
+Bảng điều khiển có hai tùy chọn **Chạy với quyền Admin** và **Khởi động cùng Windows**.
+Khi bật quyền Admin, VIMEK đề nghị khởi động lại và Windows yêu cầu xác nhận UAC.
+
 | Kiểu gõ | Gõ | Kết quả |
 | --- | --- | --- |
 | Telex | `Tooi yeeu tieengs Vieetj` | Tôi yêu tiếng Việt |

@@ -4,6 +4,7 @@
 // Upstream attribution and modifications: see NOTICE.md.
 #include "AppDelegate.h"
 #include "VimekDashboard.h"
+#include <Shlobj.h>
 
 static AppDelegate* _instance;
 
@@ -274,6 +275,45 @@ void AppDelegate::onTableCode(const int & code) {
 
 void AppDelegate::onControlPanel() {
 	createMainDialog();
+}
+
+void AppDelegate::onSwitchShortcut(int status) {
+	APP_SET_DATA(vSwitchKeyStatus, status);
+	if (advancedDialog) advancedDialog->fillData();
+}
+
+void AppDelegate::onRunWithWindows(bool enabled) {
+	if (VimekHelper::registerRunOnStartup(enabled ? 1 : 0)) {
+		APP_SET_DATA(vRunWithWindows, enabled ? 1 : 0);
+	} else {
+		MessageBoxW(mainDialog ? mainDialog->getHwnd() : nullptr,
+			L"Không thể thay đổi tùy chọn khởi động cùng Windows. Vui lòng thử lại.", L"VIMEK", MB_OK | MB_ICONERROR);
+	}
+	if (mainDialog) mainDialog->fillData();
+	if (advancedDialog) advancedDialog->fillData();
+}
+
+void AppDelegate::onRunAsAdmin(bool enabled, HWND owner) {
+	APP_SET_DATA(vRunAsAdmin, enabled ? 1 : 0);
+	if (enabled && !IsUserAnAdmin()) {
+		if (MessageBoxW(owner, L"Khởi động lại VIMEK với quyền Admin ngay bây giờ?\nNếu chọn Không, thay đổi sẽ áp dụng ở lần mở tiếp theo.",
+			L"VIMEK", MB_ICONQUESTION | MB_YESNO) == IDYES) {
+			// The elevated instance waits for this one to exit before checking
+			// for an existing instance. Cancelling UAC leaves VIMEK running.
+			wstring arguments = L"--restart-from " + std::to_wstring(GetCurrentProcessId());
+			if ((INT_PTR)ShellExecuteW(owner, L"runas", VimekHelper::getFullPath().c_str(), arguments.c_str(), nullptr, SW_SHOWNORMAL) > 32)
+				PostQuitMessage(0);
+			else {
+				APP_SET_DATA(vRunAsAdmin, 0);
+				VimekHelper::registerRunOnStartup(vRunWithWindows);
+			}
+		}
+	} else {
+		VimekHelper::registerRunOnStartup(false);
+		VimekHelper::registerRunOnStartup(vRunWithWindows);
+	}
+	if (mainDialog) mainDialog->fillData();
+	if (advancedDialog) advancedDialog->fillData();
 }
 
 void AppDelegate::onAdvancedSettings() {

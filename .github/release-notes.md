@@ -2,6 +2,8 @@ VIMEK là bộ gõ tiếng Việt cho Windows và macOS, do GrazT phát triển.
 
 - Telex, VNI và hai biến thể Simple Telex.
 - Giao diện theo chế độ sáng/tối của hệ điều hành, biểu tượng V/E.
+- Bấm nút phím chuyển trên Windows để đổi Ctrl+Alt ↔ Ctrl+Shift và dùng ngay, giữ nguyên lựa chọn âm thanh.
+- Tùy chọn Chạy với quyền Admin và Khởi động cùng Windows ngay trong bảng điều khiển; kiểm tra chính tả và nhớ chế độ theo ứng dụng nằm trong Nâng cao.
 - Chuyển Việt/Anh bằng Ctrl+Alt trên Windows, Control+Option trên macOS. Có thể giữ một phím và bấm phím còn lại nhiều lần, kèm âm thanh hệ thống.
 - Gõ tắt, kiểm tra chính tả, nhớ chế độ theo ứng dụng và chuyển mã.
 - Sửa lỗi tùy chọn Nâng cao biến mất khi chuyển tab trên Windows.

@@ -19,7 +19,7 @@ public:
 	static void setRegBinary(LPCTSTR key, const BYTE* pData, const int& size);
 	static BYTE* getRegBinary(LPCTSTR key, DWORD& outSize);
 
-	static void registerRunOnStartup(const int& val);
+	static bool registerRunOnStartup(const int& val);
 
 	static LPTSTR getExecutePath();
 

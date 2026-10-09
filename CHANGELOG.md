@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-alpha.4
+
+- Bấm nút phím chuyển trên Windows để đổi giữa Ctrl+Alt và Ctrl+Shift, áp dụng ngay và giữ lựa chọn âm thanh.
+- Thay hai tùy chọn chính tả và nhớ chế độ theo ứng dụng trong bảng điều khiển bằng Chạy với quyền Admin và Khởi động cùng Windows. Hai tùy chọn cũ vẫn có trong Nâng cao.
+- Dùng chung cấu hình hệ thống giữa bảng điều khiển và Nâng cao; hủy UAC không đóng VIMEK.
+- Sửa khởi động cùng Windows với đường dẫn chứa dấu cách hoặc ký tự tiếng Việt.
+
 ## 0.1.0-alpha.3
 
 - Sửa tab Thông tin bị cắt nội dung và nút Giấy phép & nguồn gốc do dùng đơn vị kích thước khác với cửa sổ Nâng cao.

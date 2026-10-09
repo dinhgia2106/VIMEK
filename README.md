@@ -44,6 +44,11 @@ Hold Ctrl/Control and press and release Alt/Option to switch; repeat while
 holding Ctrl/Control to switch again. Change the shortcut or disable the sound
 in **Advanced (Nâng cao)**.
 
+On Windows, click the shortcut button in the main panel to alternate between
+**Ctrl+Alt** and **Ctrl+Shift**. The change takes effect immediately.
+The panel also provides **Run as administrator** and **Start with Windows** toggles.
+Enabling administrator mode offers to restart VIMEK and requires Windows UAC approval.
+
 | Input method | Type | Result |
 | --- | --- | --- |
 | Telex | `Tooi yeeu tieengs Vieetj` | Tôi yêu tiếng Việt |

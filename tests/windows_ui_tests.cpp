@@ -2,6 +2,8 @@
 #include "stdafx.h"
 #include "AppDelegate.h"
 #include "VimekTheme.h"
+#include "VimekDashboard.h"
+#include "../Sources/VIMEK/engine/ModifierShortcut.h"
 #include <iostream>
 
 INT_PTR CALLBACK DialogProc(HWND,UINT,WPARAM,LPARAM);
@@ -27,6 +29,59 @@ HWND findOption(HWND root,int id) {
         if(option)return option;
     }
     return nullptr;
+}
+
+class DashboardActions : public AppDelegate {
+public:
+    int shortcuts=0,admin=0,startup=0;
+    HWND adminOwner=nullptr;
+    // Replace OS effects only: native button dispatch and shortcut selection
+    // execute unchanged, without writing preferences, startup entries or UAC.
+    void onSwitchShortcut(int status) override {++shortcuts;vSwitchKeyStatus=status;}
+    void onRunWithWindows(bool enabled) override {++startup;vRunWithWindows=enabled;}
+    void onRunAsAdmin(bool enabled,HWND owner) override {++admin;vRunAsAdmin=enabled;adminOwner=owner;}
+};
+bool captionIs(HWND control,const wchar_t* expected) {
+    wchar_t text[128]={};GetWindowTextW(control,text,128);return wcscmp(text,expected)==0;
+}
+void testDashboard() {
+    DashboardActions app;
+    VimekDashboard dialog(GetModuleHandle(nullptr));
+    HWND root=CreateDialogParam(GetModuleHandle(nullptr),MAKEINTRESOURCE(5000),nullptr,DialogProc,(LPARAM)&dialog);
+    check(root!=nullptr,"Dashboard opens");if(!root)return;
+    ShowWindow(root,SW_SHOWNORMAL);pump();
+    HWND hotkey=GetDlgItem(root,7011),admin=GetDlgItem(root,7006),startup=GetDlgItem(root,7007);
+    int savedShortcut=vSwitchKeyStatus,savedAdmin=vRunAsAdmin,savedStartup=vRunWithWindows;
+    int spelling=vCheckSpelling,smart=vUseSmartSwitchKey;
+    for(unsigned sound:{0u,0x8000u}) {
+        vSwitchKeyStatus=int(0xFE0003FEu|sound);dialog.fillData();
+        SendMessage(hotkey,BM_CLICK,0,0);pump();
+        check(captionIs(hotkey,L"Ctrl + Shift"),"Shortcut click selects Ctrl+Shift");
+        check(unsigned(vSwitchKeyStatus)==(0xFE0009FEu|sound),"Shortcut saves Ctrl+Shift and retains sound preference");
+        VimekModifierShortcut chord;
+        unsigned required=(unsigned(vSwitchKeyStatus)>>8)&15;
+        check(!chord.update(1,required)&&!chord.update(9,required)&&chord.update(1,required)&&
+            !chord.update(9,required)&&chord.update(1,required),"Selected shortcut supports holding Ctrl and tapping Shift repeatedly");
+        SendMessage(hotkey,BM_CLICK,0,0);pump();
+        check(captionIs(hotkey,L"Ctrl + Alt")&&unsigned(vSwitchKeyStatus)==(0xFE0003FEu|sound),"Next click saves Ctrl+Alt, retaining sound preference");
+    }
+    vSwitchKeyStatus=0x5A00855A;dialog.fillData();
+    SendMessage(hotkey,BM_CLICK,0,0);pump();
+    check(unsigned(vSwitchKeyStatus)==0xFE0083FEu,"Custom shortcut selects Ctrl+Alt without retaining its letter or Win key");
+    check(app.shortcuts==5,"Every shortcut click reaches the preference action once");
+    vRunAsAdmin=vRunWithWindows=0;dialog.fillData();
+    SendMessage(admin,BM_CLICK,0,0);pump();
+    check(vRunAsAdmin==1&&app.adminOwner==root&&captionIs(admin,L"Chạy với quyền Admin: Bật"),"Admin toggle enables admin through the shared action");
+    SendMessage(startup,BM_CLICK,0,0);pump();
+    check(vRunWithWindows==1&&captionIs(startup,L"Khởi động cùng Windows: Bật"),"Startup toggle enables startup through the shared action");
+    SendMessage(admin,BM_CLICK,0,0);SendMessage(startup,BM_CLICK,0,0);pump();
+    check(!vRunAsAdmin&&!vRunWithWindows&&app.admin==2&&app.startup==2,"Both system toggles turn off on the next click");
+    check(vCheckSpelling==spelling&&vUseSmartSwitchKey==smart,"Dashboard system toggles leave spelling and app-mode preferences intact");
+    vRunAsAdmin=vRunWithWindows=1;vSwitchKeyStatus=int(0xFE0009FEu);dialog.fillData();
+    check(captionIs(admin,L"Chạy với quyền Admin: Bật")&&captionIs(startup,L"Khởi động cùng Windows: Bật")&&
+        captionIs(hotkey,L"Ctrl + Shift"),"Dashboard refresh reflects changes made in advanced settings");
+    vSwitchKeyStatus=savedShortcut;vRunAsAdmin=savedAdmin;vRunWithWindows=savedStartup;
+    DestroyWindow(root);pump();
 }
 POINT center(HWND window) {
     RECT rect;GetWindowRect(window,&rect);return {(rect.left+rect.right)/2,(rect.top+rect.bottom)/2};
@@ -195,7 +250,8 @@ int main() {
     INITCOMMONCONTROLSEX controls={sizeof(controls),ICC_WIN95_CLASSES|ICC_LINK_CLASS};InitCommonControlsEx(&controls);
     testAdvancedDialog();
     testConvertGroups();
+    testDashboard();
     SetThreadDesktop(previous);CloseDesktop(desktop);
-    std::cout<<"Grouped controls and 20 native tab switches, repaints and option clicks; "<<failures<<" failures\n";
+    std::cout<<"Dashboard shortcuts and system toggles, grouped controls and 20 native tab switches; "<<failures<<" failures\n";
     return failures?1:0;
 }

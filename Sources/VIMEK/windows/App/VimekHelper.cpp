@@ -4,6 +4,7 @@
 // Upstream attribution and modifications: see NOTICE.md.
 #include "VimekHelper.h"
 #include <stdarg.h>
+#include <Shlobj.h>
 
 #include <fstream>
 #include <sstream>
@@ -82,25 +83,47 @@ BYTE * VimekHelper::getRegBinary(LPCTSTR key, DWORD& outSize) {
 	return _regData;
 }
 
-void VimekHelper::registerRunOnStartup(const int& val) {
-	if (val) {
-		if (vRunAsAdmin) {
-			string path = wideStringToUtf8(getFullPath());
-			char buff[MAX_PATH];
-			sprintf_s(buff, "schtasks /create /sc onlogon /tn VIMEK /rl highest /tr \"%s\" /f", path.c_str());
-			WinExec(buff, SW_HIDE);
-		} else {
-			RegOpenKeyEx(HKEY_CURRENT_USER, _runOnStartupKeyPath, NULL, KEY_ALL_ACCESS, &hKey);
-			wstring path = getFullPath();
-			RegSetValueEx(hKey, _T("VIMEK"), 0, REG_SZ, reinterpret_cast<const BYTE*>(path.c_str()), ((DWORD)path.size() + 1) * sizeof(TCHAR));
-			RegCloseKey(hKey);
-		}
-	} else {
-		RegOpenKeyEx(HKEY_CURRENT_USER, _runOnStartupKeyPath, NULL, KEY_ALL_ACCESS, &hKey);
-		RegDeleteValue(hKey, _T("VIMEK"));
-		RegCloseKey(hKey);
-		WinExec("schtasks /delete  /tn VIMEK /f", SW_HIDE);
+static bool runStartupTask(const wstring& arguments) {
+	wchar_t systemDirectory[MAX_PATH] = {};
+	GetSystemDirectoryW(systemDirectory, MAX_PATH);
+	wstring executable = wstring(systemDirectory) + L"\\schtasks.exe";
+	wstring command = L"\"" + executable + L"\" " + arguments;
+	STARTUPINFOW startup = {}; startup.cb = sizeof(startup);
+	PROCESS_INFORMATION process = {};
+	if (CreateProcessW(executable.c_str(), &command[0], nullptr, nullptr, FALSE,
+		CREATE_NO_WINDOW, nullptr, nullptr, &startup, &process)) {
+		// Finish deletion before creating a replacement task.
+		DWORD result = WaitForSingleObject(process.hProcess, 10000), exitCode = 1;
+		if (result == WAIT_OBJECT_0) GetExitCodeProcess(process.hProcess, &exitCode);
+		CloseHandle(process.hThread); CloseHandle(process.hProcess);
+		return result == WAIT_OBJECT_0 && exitCode == 0;
 	}
+	return false;
+}
+
+bool VimekHelper::registerRunOnStartup(const int& val) {
+	HKEY runKey = nullptr;
+	if (RegCreateKeyExW(HKEY_CURRENT_USER, _runOnStartupKeyPath, 0, nullptr, 0, KEY_SET_VALUE,
+		nullptr, &runKey, nullptr) != ERROR_SUCCESS) return false;
+	// A task created by an elevated process avoids a UAC prompt at each logon.
+	// If elevation was deferred, the Run entry launches VIMEK normally and the
+	// app requests UAC at startup, just as it does on a manual launch.
+	bool taskCreated = false;
+	if (val && vRunAsAdmin && IsUserAnAdmin()) {
+		// Preserve Unicode and quote the executable inside the task argument.
+		taskCreated = runStartupTask(L"/create /sc onlogon /tn VIMEK /rl highest /it /tr \"\\\"" + getFullPath() + L"\\\"\" /f");
+	}
+	LONG result;
+	if (val && !taskCreated) {
+		wstring path = L"\"" + getFullPath() + L"\"";
+		result = RegSetValueExW(runKey, L"VIMEK", 0, REG_SZ, reinterpret_cast<const BYTE*>(path.c_str()), DWORD((path.size() + 1) * sizeof(wchar_t)));
+	} else {
+		result = RegDeleteValueW(runKey, L"VIMEK");
+		if (result == ERROR_FILE_NOT_FOUND) result = ERROR_SUCCESS;
+	}
+	RegCloseKey(runKey);
+	if (!val) runStartupTask(L"/delete /tn VIMEK /f");
+	return result == ERROR_SUCCESS;
 }
 
 LPTSTR VimekHelper::getExecutePath() {

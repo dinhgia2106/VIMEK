@@ -27,7 +27,6 @@ private:
 	void setSwitchKeyText(const HWND& hWnd, const UINT16 & keyCode);
 	void onTabIndexChanged();
 	void onUpdateButton();
-	void requestRestartAsAdmin();
 protected:
 	INT_PTR eventProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) override;
 	static INT_PTR CALLBACK tabPageEventProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);

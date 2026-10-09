@@ -9,13 +9,13 @@
 #pragma comment(lib, "dwmapi.lib")
 #pragma comment(lib, "gdiplus.lib")
 using namespace Gdiplus;
-enum { VI=7000, EN, METHOD0, METHOD1, METHOD2, METHOD3, SPELL, SMART, MACRO, ADVANCED, CONVERT, HOTKEY };
+enum { VI=7000, EN, METHOD0, METHOD1, METHOD2, METHOD3, ADMIN, STARTUP, MACRO, ADVANCED, CONVERT, HOTKEY };
 struct Control {int id;const wchar_t* title;int x,y,width,height;};
 static const Control controls[]={
     {VI,L"Tiếng Việt",32,140,302,40},{EN,L"English",346,140,302,40},
     {METHOD0,L"Telex",32,228,145,40},{METHOD1,L"VNI",189,228,145,40},
     {METHOD2,L"Simple Telex 1",346,228,145,40},{METHOD3,L"Simple Telex 2",503,228,145,40},
-    {HOTKEY,L"Ctrl + Alt",456,327,192,36},{SPELL,L"Bật",558,385,90,36},{SMART,L"Bật",558,434,90,36},
+    {HOTKEY,L"Ctrl + Alt",456,327,192,36},{ADMIN,L"Tắt",558,385,90,36},{STARTUP,L"Tắt",558,434,90,36},
     {MACRO,L"Gõ tắt",32,499,192,36},{CONVERT,L"Chuyển mã",236,499,192,36},{ADVANCED,L"Nâng cao",440,499,208,36}
 };
 static COLORREF rgb(bool dark, COLORREF light, COLORREF night) { return dark ? night : light; }
@@ -61,8 +61,8 @@ void VimekDashboard::paint(HDC dc, RECT client) {
     const wchar_t* sample = vInputType==1?L"Ví dụ: tie6ng1 Vie6t5 → tiếng Việt":L"Ví dụ: tieengs Vieetj → tiếng Việt";
     text(dc,sample,32,273,610,26,bodyFont,muted);
     text(dc,L"Phím chuyển Việt / Anh",32,331,350,28,bodyFont,ink);
-    text(dc,L"Kiểm tra chính tả",32,388,350,28,bodyFont,ink);
-    text(dc,L"Nhớ chế độ theo ứng dụng",32,437,420,28,bodyFont,ink);
+    text(dc,L"Chạy với quyền Admin",32,388,350,28,bodyFont,ink);
+    text(dc,L"Khởi động cùng Windows",32,437,420,28,bodyFont,ink);
     const wchar_t* codes[]={L"Unicode",L"TCVN3",L"VNI Windows",L"Unicode tổ hợp",L"CP1258"};
     text(dc,codes[(vCodeTable>=0&&vCodeTable<5)?vCodeTable:0],32,560,610,22,bodyFont,muted);
     HPEN p=CreatePen(PS_SOLID,1,line);auto old=SelectObject(dc,p);
@@ -72,7 +72,7 @@ void VimekDashboard::paint(HDC dc, RECT client) {
 void VimekDashboard::drawButton(const DRAWITEMSTRUCT* item, const wchar_t* suppliedLabel) {
     int id=item->CtlID;
     bool active=(id==VI&&vLanguage)||(id==EN&&!vLanguage)||(id>=METHOD0&&id<=METHOD3&&vInputType==id-METHOD0)||
-        (id==SPELL&&vCheckSpelling)||(id==SMART&&vUseSmartSwitchKey);
+        (id==ADMIN&&vRunAsAdmin)||(id==STARTUP&&vRunWithWindows);
     COLORREF fill=active?rgb(dark,RGB(35,40,49),RGB(237,240,245)):rgb(dark,RGB(255,255,255),RGB(28,32,39));
     if(item->itemState&ODS_SELECTED)fill=rgb(dark,RGB(94,104,120),RGB(92,103,122));
     COLORREF ink=active?rgb(dark,RGB(255,255,255),RGB(26,30,37)):rgb(dark,RGB(48,54,65),RGB(226,231,240));
@@ -81,17 +81,17 @@ void VimekDashboard::drawButton(const DRAWITEMSTRUCT* item, const wchar_t* suppl
     RECT r=item->rcItem;FillRect(item->hDC,&r,background);RoundRect(item->hDC,r.left+1,r.top+1,r.right-1,r.bottom-1,int(12*scale),int(12*scale));
     SelectObject(item->hDC,oldP);SelectObject(item->hDC,oldB);DeleteObject(p);DeleteObject(b);
     wchar_t label[128];if(suppliedLabel)wcsncpy(label,suppliedLabel,127);else GetWindowTextW(item->hwndItem,label,128);label[127]=0;
-    if(id==SPELL)wcscpy(label,vCheckSpelling?L"Bật":L"Tắt");
-    if(id==SMART)wcscpy(label,vUseSmartSwitchKey?L"Bật":L"Tắt");
+    if(id==ADMIN)wcscpy(label,vRunAsAdmin?L"Bật":L"Tắt");
+    if(id==STARTUP)wcscpy(label,vRunWithWindows?L"Bật":L"Tắt");
     auto old=SelectObject(item->hDC,bodyFont);SetBkMode(item->hDC,TRANSPARENT);SetTextColor(item->hDC,ink);
     DrawTextW(item->hDC,label,-1,&r,DT_CENTER|DT_VCENTER|DT_SINGLELINE|DT_NOPREFIX);SelectObject(item->hDC,old);
     if(item->itemState&ODS_FOCUS){InflateRect(&r,-int(4*scale),-int(4*scale));DrawFocusRect(item->hDC,&r);}
 }
 void VimekDashboard::fillData() {
     if(!hDlg)return;
-    SetDlgItemText(hDlg,SPELL,vCheckSpelling?L"Kiểm tra chính tả: Bật":L"Kiểm tra chính tả: Tắt");
-    SetDlgItemText(hDlg,SMART,vUseSmartSwitchKey?L"Nhớ chế độ theo ứng dụng: Bật":L"Nhớ chế độ theo ứng dụng: Tắt");
-    // Show the saved custom shortcut accurately; clicking restores Ctrl+Alt.
+    SetDlgItemText(hDlg,ADMIN,vRunAsAdmin?L"Chạy với quyền Admin: Bật":L"Chạy với quyền Admin: Tắt");
+    SetDlgItemText(hDlg,STARTUP,vRunWithWindows?L"Khởi động cùng Windows: Bật":L"Khởi động cùng Windows: Tắt");
+    // Show custom shortcuts too; a click selects one of the two presets.
     std::wstring shortcut;
     if(HAS_CONTROL(vSwitchKeyStatus))shortcut+=L"Ctrl + ";
     if(HAS_OPTION(vSwitchKeyStatus))shortcut+=L"Alt + ";
@@ -124,7 +124,7 @@ INT_PTR VimekDashboard::eventProc(HWND window,UINT message,WPARAM wp,LPARAM lp) 
         static ULONG_PTR token=0;if(!token){GdiplusStartupInput input;GdiplusStartup(&token,&input,nullptr);}
         updateTheme();SET_DIALOG_ICON(IDI_APP_ICON);
         for(const auto& c:controls)button(c.id,c.title,c.x,c.y,c.width,c.height);
-        createToolTip(GetDlgItem(hDlg,HOTKEY),L"Bấm để dùng Ctrl + Alt. Đặt phím khác trong Nâng cao.");
+        createToolTip(GetDlgItem(hDlg,HOTKEY),L"Bấm để đổi giữa Ctrl + Alt và Ctrl + Shift.");
         fillData();return TRUE;}
     case WM_PAINT:{PAINTSTRUCT ps;HDC dc=BeginPaint(window,&ps);RECT r;GetClientRect(window,&r);paint(dc,r);EndPaint(window,&ps);return TRUE;}
     case WM_ERASEBKGND:return TRUE;
@@ -136,12 +136,17 @@ INT_PTR VimekDashboard::eventProc(HWND window,UINT message,WPARAM wp,LPARAM lp) 
         if(HIWORD(wp)!=BN_CLICKED)break;int id=LOWORD(wp);auto app=AppDelegate::getInstance();
         if(id==VI||id==EN){if(vLanguage!=(id==VI)){app->onToggleVietnamese();startNewSession();}}
         else if(id>=METHOD0&&id<=METHOD3)app->onInputType(id-METHOD0);
-        else if(id==SPELL)app->onToggleCheckSpelling();
-        else if(id==SMART)app->onToggleUseSmartSwitchKey();
+        else if(id==ADMIN)app->onRunAsAdmin(!vRunAsAdmin,window);
+        else if(id==STARTUP)app->onRunWithWindows(!vRunWithWindows);
         else if(id==MACRO)app->onMacroTable();
         else if(id==CONVERT)app->onConvertTool();
         else if(id==ADVANCED)app->onAdvancedSettings();
-        else if(id==HOTKEY){APP_SET_DATA(vSwitchKeyStatus,VIMEK_DEFAULT_SWITCH_STATUS);}
+        else if(id==HOTKEY){
+            unsigned saved=unsigned(vSwitchKeyStatus);
+            unsigned modifiers=(saved>>8)&15;
+            unsigned next=(GET_SWITCH_KEY(saved)==0xFE&&modifiers==3)?9:3;
+            app->onSwitchShortcut(int(0xFE0000FEu|(saved&0xF000u)|(next<<8)));
+        }
         else if(id==IDCANCEL){app->closeDialog(this);return TRUE;}
         SystemTrayHelper::updateData();fillData();return TRUE;}
     case WM_CLOSE:AppDelegate::getInstance()->closeDialog(this);return TRUE;
