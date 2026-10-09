@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.vimek.settings" path="/org/vimek/settings/">
+    <key name="vietnamese" type="b"><default>true</default><summary>Vietnamese mode</summary></key>
+    <key name="method" type="i"><range min="0" max="3"/><default>0</default><summary>Input method</summary></key>
+    <key name="shortcut" type="s"><choices><choice value="ctrl-alt"/><choice value="ctrl-shift"/></choices><default>'ctrl-alt'</default><summary>Language shortcut</summary></key>
+    <key name="sound" type="b"><default>true</default><summary>Switch feedback sound</summary></key>
+    <key name="spelling" type="b"><default>true</default><summary>Check Vietnamese spelling</summary></key>
+    <key name="restore" type="b"><default>true</default><summary>Restore invalid words</summary></key>
+    <key name="modern" type="b"><default>false</default><summary>Modern tone placement</summary></key>
+  </schema>
+</schemalist>

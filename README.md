@@ -2,7 +2,7 @@
 
 **English** | [Tiếng Việt](README.vi.md)
 
-An open-source Vietnamese input method for Windows and macOS, developed by
+An open-source Vietnamese input method for Windows, macOS, and Linux, developed by
 [GrazT](https://github.com/dinhgia2106). VIMEK offers a compact interface,
 follows your system's light or dark appearance, and makes switching between
 Vietnamese and English easy.
@@ -21,6 +21,11 @@ Vietnamese and English easy.
 - Text encoding conversion and an option to launch at login.
 - System light/dark appearance, high-DPI and Retina support.
 
+The Linux alpha uses **IBus** and supports Unicode, the four input methods,
+Vietnamese/English switching, spelling checks, sound feedback, and a GTK settings
+panel. Text expansion, per-app mode memory, and encoding conversion are currently
+available on Windows and macOS.
+
 ## Download
 
 Download VIMEK from the [website](https://dinhgia2106.github.io/VIMEK/)
@@ -28,6 +33,7 @@ or [GitHub Releases](https://github.com/dinhgia2106/VIMEK/releases).
 
 - **Windows:** choose x64 or x86, extract the ZIP, and run VIMEK.
 - **macOS:** the universal build supports Intel and Apple Silicon on macOS 11 or later. Extract the ZIP and move VIMEK to **Applications**.
+- **Linux:** the amd64 `.deb` package is built for Ubuntu 22.04 or later and compatible Debian-based systems with IBus. See the [Linux guide](Linux_Build.md).
 
 Current Windows alpha builds are unsigned. macOS builds are signed ad-hoc and
 are not notarized with an Apple Developer ID.
@@ -39,7 +45,7 @@ The **V** icon indicates Vietnamese mode; **E** indicates English mode.
 To avoid conflicts, disable other input methods and select **ENG** on Windows
 or **ABC/U.S.** on macOS.
 
-The default shortcut is **Ctrl+Alt** on Windows and **Control+Option** on macOS.
+The default shortcut is **Ctrl+Alt** on Windows/Linux and **Control+Option** on macOS.
 Hold Ctrl/Control and press and release Alt/Option to switch; repeat while
 holding Ctrl/Control to switch again. Change the shortcut or disable the sound
 in **Advanced (Nâng cao)**.
@@ -56,6 +62,10 @@ Enabling administrator mode offers to restart VIMEK and requires Windows UAC app
 
 On macOS, grant **Accessibility** permission in **System Settings → Privacy & Security**
 when prompted, then reopen VIMEK.
+
+On Linux, install the `.deb`, log out and back in, then add **Vietnamese → VIMEK**
+to your input sources. Open **VIMEK** from the application menu to choose your method
+or alternate between **Ctrl+Alt** and **Ctrl+Shift**.
 
 ## Build from source
 
@@ -94,6 +104,20 @@ bash scripts/build-macos.sh
 
 Output: `dist/macos/VIMEK.app`, supporting Intel and Apple Silicon.
 See the [macOS guide (Vietnamese)](macOS_Build.md) for installation and signing details.
+
+### Linux
+
+On Ubuntu/Debian, install the build dependencies and create the IBus engine and `.deb` package:
+
+```bash
+sudo apt install build-essential cmake pkg-config file dpkg-dev libibus-1.0-dev libcanberra-dev
+bash scripts/build-linux.sh
+```
+
+Output: `dist/linux/VIMEK-0.1.0-Linux-amd64.deb` on an x86-64 machine.
+Install with `sudo apt install ./dist/linux/VIMEK-0.1.0-Linux-amd64.deb`, then log
+out and back in and add **Vietnamese → VIMEK** to your input sources.
+The [Linux guide](Linux_Build.md) covers IBus setup, tests, and building on other distributions.
 
 ## Contributing
 

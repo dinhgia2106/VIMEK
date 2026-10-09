@@ -19,7 +19,8 @@ về hành vi mong muốn trước khi triển khai.
 | `Sources/VIMEK/windows/App` | Hook bàn phím, tray và giao diện Windows |
 | `Sources/VIMEK/macOS/App` | Event tap, menu bar và giao diện macOS |
 | `Sources/VIMEK/macOS/VIMEKHelper` | Helper khởi động trên macOS |
-| `tests` | Kiểm thử lõi gõ, phím tắt và giao diện Windows |
+| `Sources/VIMEK/linux` | Engine IBus, giao diện GTK và cấu hình Linux |
+| `tests` | Kiểm thử lõi gõ, phím tắt, giao diện Windows và tích hợp Linux |
 | `assets/brand` | Vector biểu tượng V/E |
 
 Hướng dẫn build và chạy kiểm thử nằm trong [README](README.md).

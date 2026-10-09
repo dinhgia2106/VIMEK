@@ -12,9 +12,12 @@
       headline: "Vietnamese.",
       headlineAccent: "Naturally.",
       description:
-        "Your words, without the extra effort. A familiar Vietnamese input method with a quiet interface, for Windows and macOS.",
+        "Your words, without the extra effort. A familiar Vietnamese input method with a quiet interface, for Windows, macOS and Linux.",
       downloadWindows: "Download for Windows",
       downloadMac: "Download for macOS",
+      downloadLinux: "Download for Linux",
+      linuxDescription: "For Ubuntu/Debian with IBus. Unicode input.",
+      linuxSetup: "Setup guide ↗",
       otherPlatforms: "Other downloads",
       free: "Free & open source",
       inYourElement: "IN YOUR ELEMENT",
@@ -36,7 +39,7 @@
       macShortcut: "Control + Option on Mac",
       smallDetails: "Small details. Less effort.",
       smallDetailsBody:
-        "Text expansion, spell checking, and input mode memory for each app. Light or dark, right at home on your desktop.",
+        "Spelling checks and a familiar light or dark interface. Windows and macOS also offer text expansion and per-app mode memory.",
       followsSystem: "Follows your system appearance",
       makeYourselfAtHome: "MAKE YOURSELF AT HOME",
       readyWhenYouAre: "Ready when you are.",
@@ -52,7 +55,7 @@
       signingNote:
         "Windows builds are currently unsigned; macOS builds are signed ad-hoc and are not notarized. Your operating system may show a security warning. Check the download source and the exact warning before proceeding.",
       setupNote:
-        "On macOS, grant Accessibility permission when prompted, then reopen VIMEK. Select ENG on Windows or ABC/U.S. on macOS, and disable other Vietnamese input methods to avoid conflicts.",
+        "On macOS, grant Accessibility permission when prompted, then reopen VIMEK. On Linux, install the DEB, log out and back in, and add Vietnamese → VIMEK to your IBus input sources. Select ENG on Windows or ABC/U.S. on macOS, and disable other Vietnamese input methods to avoid conflicts.",
       reportIssue: "Something not working? Report an issue ↗",
       builtInTheOpen: "BUILT IN THE OPEN",
       yourWords: "Your words. Your way.",
@@ -76,9 +79,12 @@
       headline: "Tiếng Việt.",
       headlineAccent: "Thật tự nhiên.",
       description:
-        "Viết điều bạn muốn, gõ theo cách bạn quen. Bộ gõ tiếng Việt với giao diện tinh gọn, dành cho Windows và macOS.",
+        "Viết điều bạn muốn, gõ theo cách bạn quen. Bộ gõ tiếng Việt với giao diện tinh gọn, dành cho Windows, macOS và Linux.",
       downloadWindows: "Tải cho Windows",
       downloadMac: "Tải cho macOS",
+      downloadLinux: "Tải cho Linux",
+      linuxDescription: "Cho Ubuntu/Debian dùng IBus. Hỗ trợ Unicode.",
+      linuxSetup: "Hướng dẫn cài đặt ↗",
       otherPlatforms: "Các bản tải khác",
       free: "Miễn phí & mã nguồn mở",
       inYourElement: "QUEN THUỘC TỪ LẦN ĐẦU",
@@ -100,7 +106,7 @@
       macShortcut: "Control + Option trên Mac",
       smallDetails: "Bớt thao tác, thêm tiện lợi.",
       smallDetailsBody:
-        "Gõ tắt, kiểm tra chính tả và nhớ chế độ theo ứng dụng. Sáng hay tối, giao diện luôn hòa cùng màn hình của bạn.",
+        "Kiểm tra chính tả và giao diện sáng/tối quen thuộc. Windows và macOS có thêm gõ tắt và nhớ chế độ theo ứng dụng.",
       followsSystem: "Theo giao diện sáng/tối của hệ điều hành",
       makeYourselfAtHome: "SẴN SÀNG ĐỂ BẮT ĐẦU",
       readyWhenYouAre: "Tải về. Gõ tự nhiên.",
@@ -116,7 +122,7 @@
       signingNote:
         "Bản Windows hiện chưa có chữ ký số; bản macOS được ký ad-hoc và chưa notarize. Hệ điều hành có thể hiển thị cảnh báo bảo mật. Kiểm tra nguồn tải và nội dung cảnh báo trước khi tiếp tục.",
       setupNote:
-        "Trên macOS, cấp quyền Accessibility khi được yêu cầu rồi mở lại VIMEK. Chọn ENG trên Windows hoặc ABC/U.S. trên macOS và tắt các bộ gõ tiếng Việt khác để tránh xung đột.",
+        "Trên macOS, cấp quyền Accessibility khi được yêu cầu rồi mở lại VIMEK. Trên Linux, cài DEB, đăng xuất rồi đăng nhập lại và thêm Vietnamese → VIMEK trong nguồn nhập liệu IBus. Chọn ENG trên Windows hoặc ABC/U.S. trên macOS và tắt các bộ gõ tiếng Việt khác để tránh xung đột.",
       reportIssue: "Gặp vấn đề? Báo lỗi tại đây ↗",
       builtInTheOpen: "CÙNG NHAU PHÁT TRIỂN",
       yourWords: "Lời của bạn. Cách của bạn.",
@@ -149,6 +155,8 @@
   const themeButton = document.querySelector(".theme-button");
   const heroDownload = document.querySelector(".hero-download");
   const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
+  const isLinux = /Linux|X11/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent);
+  const platform = isMac ? "macos" : isLinux && !document.querySelector('[data-platform="linux"]').hidden ? "linux" : "windows-x64";
   let language = "en";
   let chosenTheme = getPreference("vimek-theme");
   if (!["dark", "light"].includes(chosenTheme)) chosenTheme = null;
@@ -197,7 +205,7 @@
           String(button.dataset.language === language),
         ),
       );
-    const platformKey = isMac ? "downloadMac" : "downloadWindows";
+    const platformKey = platform === "macos" ? "downloadMac" : platform === "linux" ? "downloadLinux" : "downloadWindows";
     heroDownload.querySelector("span").textContent = copy[platformKey];
     refreshTheme();
   }
@@ -229,7 +237,7 @@
     }),
   );
   heroDownload.href = document.querySelector(
-    `[data-download="${isMac ? "macos" : "windows-x64"}"]`,
+    `[data-download="${platform}"]`,
   ).href;
   setLanguage(
     new URLSearchParams(location.search).get("lang") ||

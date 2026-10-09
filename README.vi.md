@@ -2,7 +2,7 @@
 
 [English](README.md) | **Tiếng Việt**
 
-Bộ gõ tiếng Việt mã nguồn mở cho Windows và macOS, được phát triển bởi
+Bộ gõ tiếng Việt mã nguồn mở cho Windows, macOS và Linux, được phát triển bởi
 [GrazT](https://github.com/dinhgia2106). VIMEK có giao diện gọn nhẹ,
 tự theo chế độ sáng/tối của hệ điều hành và thao tác chuyển Việt/Anh thuận tiện.
 
@@ -20,6 +20,10 @@ tự theo chế độ sáng/tối của hệ điều hành và thao tác chuyể
 - Công cụ chuyển mã văn bản và tùy chọn khởi động cùng hệ điều hành.
 - Giao diện tự chuyển sáng/tối, hỗ trợ màn hình DPI cao và Retina.
 
+Bản Linux alpha dùng **IBus**, hỗ trợ Unicode, bốn kiểu gõ, chuyển Việt/Anh,
+kiểm tra chính tả, âm thanh và cửa sổ cài đặt GTK. Gõ tắt, nhớ chế độ theo ứng dụng
+và chuyển bảng mã hiện có trên Windows và macOS.
+
 ## Tải về
 
 Tải VIMEK tại [trang web](https://dinhgia2106.github.io/VIMEK/?lang=vi)
@@ -27,6 +31,7 @@ hoặc [GitHub Releases](https://github.com/dinhgia2106/VIMEK/releases).
 
 - **Windows:** chọn x64 hoặc x86, giải nén ZIP và chạy VIMEK.
 - **macOS:** bản universal hỗ trợ Intel và Apple Silicon từ macOS 11 trở lên. Giải nén ZIP và đưa VIMEK vào **Applications**.
+- **Linux:** gói `.deb` amd64 dành cho Ubuntu từ 22.04 và các hệ thống tương thích Debian dùng IBus. Xem [hướng dẫn Linux](Linux_Build.md).
 
 Các bản Windows alpha hiện chưa có chữ ký số. Bản macOS được ký ad-hoc,
 chưa được notarize bằng Apple Developer ID.
@@ -38,7 +43,7 @@ Biểu tượng **V** là chế độ tiếng Việt, **E** là chế độ ti�
 Để tránh xung đột, tắt các bộ gõ khác và chọn bàn phím **ENG** trên Windows
 hoặc **ABC/U.S.** trên macOS.
 
-Phím chuyển mặc định là **Ctrl+Alt** trên Windows, **Control+Option** trên macOS.
+Phím chuyển mặc định là **Ctrl+Alt** trên Windows/Linux, **Control+Option** trên macOS.
 Giữ Ctrl/Control, bấm rồi thả Alt/Option để chuyển; có thể bấm nhiều lần
 khi vẫn giữ Ctrl/Control. Thay đổi phím tắt hoặc tắt âm thanh tại **Nâng cao**.
 
@@ -54,6 +59,9 @@ Khi bật quyền Admin, VIMEK đề nghị khởi động lại và Windows yê
 
 Trên macOS, cấp quyền **Accessibility** trong **System Settings → Privacy & Security**
 khi ứng dụng yêu cầu, sau đó mở lại VIMEK.
+
+Trên Linux, cài gói `.deb`, đăng xuất rồi đăng nhập lại, sau đó thêm **Vietnamese → VIMEK**
+trong nguồn nhập liệu. Mở **VIMEK** từ danh sách ứng dụng để đổi kiểu gõ hoặc phím chuyển.
 
 ## Build từ mã nguồn
 
@@ -92,6 +100,18 @@ bash scripts/build-macos.sh
 
 Đầu ra là `dist/macos/VIMEK.app`, hỗ trợ Intel và Apple Silicon.
 Xem [hướng dẫn macOS](macOS_Build.md) để biết thêm về cài đặt và ký ứng dụng.
+
+### Linux
+
+Trên Ubuntu/Debian:
+
+```bash
+sudo apt install build-essential cmake pkg-config file dpkg-dev libibus-1.0-dev libcanberra-dev
+bash scripts/build-linux.sh
+```
+
+Kết quả: `dist/linux/VIMEK-0.1.0-Linux-amd64.deb` trên máy x86-64.
+Xem [hướng dẫn Linux](Linux_Build.md) để cài đặt, thiết lập IBus và chạy kiểm thử.
 
 ## Đóng góp
 

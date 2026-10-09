@@ -27,8 +27,9 @@ if (!release)
   throw new Error(
     "Publish a VIMEK release before deploying the download page.",
   );
-const asset = (pattern) => {
+const asset = (pattern, required = true) => {
   const item = release.assets.find((value) => pattern.test(value.name));
+  if (!item && !required) return null;
   if (
     !item ||
     !item.browser_download_url.startsWith(
@@ -43,6 +44,7 @@ const asset = (pattern) => {
 const windows64 = asset(/-Windows-x64\.zip$/i);
 const windows32 = asset(/-Windows-x86\.zip$/i);
 const macos = asset(/-macOS-universal\.zip$/i);
+const linux = asset(/-Linux-amd64\.deb$/i, false);
 const source = asset(/-source\.zip$/i);
 const checksums = asset(/^SHA256SUMS\.txt$/i);
 const size = (item) =>
@@ -56,6 +58,9 @@ const values = {
   WINDOWS_X64_URL: windows64.browser_download_url,
   WINDOWS_X86_URL: windows32.browser_download_url,
   MACOS_URL: macos.browser_download_url,
+  LINUX_URL: linux ? linux.browser_download_url : release.html_url,
+  LINUX_SIZE: linux ? size(linux) : "",
+  LINUX_HIDDEN: linux ? "" : "hidden",
   SOURCE_URL: source.browser_download_url,
   CHECKSUM_URL: checksums.browser_download_url,
   WINDOWS_X64_SIZE: size(windows64),
@@ -88,7 +93,7 @@ await writeFile(
       prerelease: release.prerelease,
       url: release.html_url,
       publishedAt: release.published_at,
-      assets: [windows64, windows32, macos, source, checksums].map(
+      assets: [windows64, windows32, macos, linux, source, checksums].filter(Boolean).map(
         ({ name, size, browser_download_url }) => ({
           name,
           size,

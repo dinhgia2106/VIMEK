@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=VIMEK
+Comment=Vietnamese input method settings
+Comment[vi]=Cài đặt bộ gõ tiếng Việt
+Exec=@CMAKE_INSTALL_FULL_LIBEXECDIR@/vimek/vimek-settings
+Icon=vimek-v-symbolic
+Terminal=false
+Categories=Settings;Utility;
+Keywords=Vietnamese;Telex;VNI;IBus;

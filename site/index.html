@@ -6,12 +6,12 @@
     <meta name="theme-color" content="#f6f5f0" />
     <meta
       name="description"
-      content="VIMEK is a free, open-source Vietnamese input method for Windows and macOS. Familiar typing, a quiet interface, and an easy switch between languages."
+      content="VIMEK is a free, open-source Vietnamese input method for Windows, macOS and Linux. Familiar typing, a quiet interface, and an easy switch between languages."
     />
     <meta property="og:title" content="VIMEK — Vietnamese. Naturally." />
     <meta
       property="og:description"
-      content="A Vietnamese input method that feels right at home. Free and open source, for Windows and macOS."
+      content="A Vietnamese input method that feels right at home. Free and open source, for Windows, macOS and Linux."
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://dinhgia2106.github.io/VIMEK/" />
@@ -92,7 +92,7 @@
           </h1>
           <p class="hero-description" data-i18n="description">
             Your words, without the extra effort. A familiar Vietnamese input
-            method with a quiet interface, for Windows and macOS.
+            method with a quiet interface, for Windows, macOS and Linux.
           </p>
           <div class="hero-actions">
             <a class="button primary hero-download" href="{{WINDOWS_X64_URL}}"
@@ -213,8 +213,8 @@
             <span class="feature-number">03 /</span>
             <h3 data-i18n="smallDetails">Small details. Less effort.</h3>
             <p data-i18n="smallDetailsBody">
-              Text expansion, spell checking, and input mode memory for each
-              app. Light or dark, right at home on your desktop.
+              Spell checking and a quiet interface on every platform. Windows
+              and macOS also include text expansion and per-app input mode memory.
             </p>
             <div class="feature-detail">
               <span class="appearance-dot" aria-hidden="true"></span
@@ -300,6 +300,23 @@
                 >
               </div>
             </article>
+            <article class="download-card" data-platform="linux" {{LINUX_HIDDEN}}>
+              <div class="platform-title">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M3 4h18v16H3Zm2 2v12h14V6Zm2 3 3 3-3 3-1-1 2-2-2-2Zm5 5h5v2h-5Z" />
+                </svg>
+                <h3>Linux</h3>
+                <span class="platform-kind">amd64 · IBus</span>
+              </div>
+              <p data-i18n="linuxDescription">For Ubuntu/Debian with IBus. Unicode input.</p>
+              <a class="button primary" data-download="linux" href="{{LINUX_URL}}"
+                ><span data-i18n="downloadLinux">Download for Linux</span
+                ><span aria-hidden="true">↓</span></a>
+              <div class="card-bottom">
+                <span>{{LINUX_SIZE}} · DEB</span>
+                <a href="https://github.com/dinhgia2106/VIMEK/blob/main/Linux_Build.md" data-i18n="linuxSetup">Setup guide ↗</a>
+              </div>
+            </article>
           </div>
           <div class="release-meta">
             <span
@@ -325,7 +342,9 @@
               <p data-i18n="setupNote">
                 On macOS, grant Accessibility permission when prompted, then
                 reopen VIMEK. Select ENG on Windows or ABC/U.S. on macOS, and
-                disable other Vietnamese input methods to avoid conflicts.
+                disable other Vietnamese input methods to avoid conflicts. On
+                Linux, install the DEB, log in again, and add VIMEK to your IBus
+                input sources. See the Linux setup guide above.
               </p>
               <a
                 href="https://github.com/dinhgia2106/VIMEK/issues"

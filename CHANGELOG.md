@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-alpha.6
+
+- Thêm bản Linux với engine IBus, Unicode, Telex, VNI và hai biến thể Simple Telex.
+- Giao diện cài đặt GTK theo sáng/tối hệ thống, biểu tượng V/E viền mảnh, lựa chọn Ctrl+Alt hoặc Ctrl+Shift và âm thanh khi chuyển chế độ.
+- Giữ riêng trạng thái ô nhập liệu, xử lý preedit và Backspace, giữ chữ khi đổi focus và bỏ qua trường mật khẩu.
+- Thêm gói `.deb` amd64, hướng dẫn Linux, kiểm thử IBus/GTK và nút tải trên website.
+
 ## 0.1.0-alpha.5
 
 - Thu gọn bảng điều khiển trên Windows và macOS: bỏ tên ngôn ngữ lặp lại ở đầu cửa sổ, đưa biểu tượng V/E viền mảnh sang bên phải, cùng hàng với VIMEK.

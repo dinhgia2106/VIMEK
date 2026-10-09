@@ -57,9 +57,45 @@ jobs:
           name: VIMEK-macOS
           path: dist/macos/VIMEK-*-macOS-universal.zip
           if-no-files-found: error
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Linux build and integration dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake pkg-config file dpkg-dev libibus-1.0-dev libcanberra-dev ibus ibus-gtk3 dbus-x11 xvfb xauth python3-gi python3-cairo python3-gi-cairo gir1.2-gtk-3.0 xdotool
+      - name: Build, test and package Linux
+        run: |
+          vimek_version=0.1.0
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then vimek_version="${GITHUB_REF_NAME#v}"; fi
+          bash scripts/build-linux.sh "$vimek_version"
+      - name: Install package and test IBus and GTK
+        run: |
+          sudo apt-get install -y ./dist/linux/VIMEK-*-Linux-amd64.deb
+          bash tests/run-linux-integration.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VIMEK-Linux
+          path: dist/linux/VIMEK-*-Linux-amd64.deb
+          if-no-files-found: error
+  linux-runtime:
+    needs: linux
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: VIMEK-Linux
+          path: dist/linux
+      - name: Test the Ubuntu 22.04 package on Ubuntu 24.04
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dbus-x11 xvfb xauth python3-cairo python3-gi-cairo xdotool ./dist/linux/VIMEK-*-Linux-amd64.deb
+          bash tests/run-linux-integration.sh
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [windows, macos]
+    needs: [windows, macos, linux, linux-runtime]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -75,7 +111,7 @@ jobs:
           vimek_version="${GITHUB_REF_NAME#v}"
           git archive --format=zip --prefix="VIMEK-$vimek_version/" HEAD > "dist/release/VIMEK-$vimek_version-source.zip"
           cd dist/release
-          sha256sum *.zip > SHA256SUMS.txt
+          sha256sum *.zip *.deb > SHA256SUMS.txt
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component>
+  <name>org.freedesktop.IBus.VIMEK</name>
+  <description>VIMEK Vietnamese input method</description>
+  <exec>@CMAKE_INSTALL_FULL_LIBEXECDIR@/vimek/ibus-engine-vimek --ibus</exec>
+  <version>@PROJECT_VERSION@</version>
+  <author>GrazT</author>
+  <license>GPL-3.0-only</license>
+  <homepage>https://github.com/dinhgia2106/VIMEK</homepage>
+  <engines><engine>
+    <name>vimek</name><longname>VIMEK</longname><description>Vietnamese — Telex, VNI and Simple Telex</description>
+    <language>vi</language><license>GPL-3.0-only</license><author>GrazT</author>
+    <icon>vimek-v-symbolic</icon><layout>us</layout><symbol>V</symbol><rank>80</rank>
+    <setup>@CMAKE_INSTALL_FULL_LIBEXECDIR@/vimek/vimek-settings</setup>
+  </engine></engines>
+</component>
