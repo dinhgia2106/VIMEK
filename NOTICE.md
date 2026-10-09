@@ -16,3 +16,8 @@ the corresponding source code under the terms of the license.
 `MJAccessibilityUtils.h` and `MJAccessibilityUtils.m` include code from
 [Hammerspoon](https://github.com/Hammerspoon/hammerspoon), licensed under MIT.
 Their license and copyright notices remain in those files.
+
+The website includes unmodified [Lora](https://github.com/google/fonts/tree/main/ofl/lora)
+font files. Copyright 2011 The Lora Project Authors, with Reserved Font Name
+"Lora". These fonts use the SIL Open Font License 1.1; see
+[site/fonts/OFL.txt](site/fonts/OFL.txt).

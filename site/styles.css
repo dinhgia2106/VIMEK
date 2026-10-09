@@ -1,4 +1,19 @@
 /* Copyright (C) 2026 GrazT. SPDX-License-Identifier: GPL-3.0-only */
+/* Full font files keep Vietnamese base letters and diacritics in one face. */
+@font-face {
+  font-family: "Lora";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("fonts/Lora-Regular.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Lora";
+  font-style: italic;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("fonts/Lora-Italic.ttf") format("truetype");
+}
 :root {
   color-scheme: light;
   --bg: #f6f5f0;
@@ -12,7 +27,7 @@
   --wash: #e7ebdf;
   --section: #eeeee7;
   --shadow: 0 28px 60px #26341c12;
-  --serif: Georgia, "Times New Roman", serif;
+  --serif: "Lora", "Times New Roman", serif;
   --sans:
     Inter, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
