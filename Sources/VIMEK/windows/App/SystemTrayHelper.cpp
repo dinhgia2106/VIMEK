@@ -9,6 +9,7 @@
 #define TRAY_ICONUID 100
 #define WM_REFRESH_TRAY (WM_APP + 20)
 #define TRAY_RETRY_TIMER 101
+#define TRAY_SETTLE_TIMER 102
 
 #define POPUP_VIET_ON_OFF 900
 #define POPUP_SPELLING 901
@@ -46,6 +47,8 @@ static HMENU otherCode;
 
 static NOTIFYICONDATA nid;
 static bool iconAdded = false;
+static bool refreshPending = false;
+static int settlePasses = 0;
 #ifdef VIMEK_TRAY_TESTING
 extern BOOL WINAPI VimekTestNotifyIcon(DWORD, PNOTIFYICONDATA);
 #endif
@@ -93,10 +96,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		AppDelegate::getInstance()->onControlPanel();
 		break;
 	case WM_REFRESH_TRAY:
+		refreshPending = false;
+		if (AppDelegate::getInstance()) AppDelegate::getInstance()->refreshInputMethodUI();
 		SystemTrayHelper::updateData();
+		// Also resubmit after the immediate update succeeds: Explorer's hidden
+		// notification area can repaint later. Always submit the latest mode.
+		settlePasses = 2;
+		SetTimer(hWnd, TRAY_SETTLE_TIMER, 250, nullptr);
 		break;
 	case WM_TIMER:
 		if (wParam == TRAY_RETRY_TIMER) SystemTrayHelper::updateData();
+		else if (wParam == TRAY_SETTLE_TIMER) {
+			SystemTrayHelper::updateData();
+			if (--settlePasses <= 0) KillTimer(hWnd, TRAY_SETTLE_TIMER);
+		}
 		break;
 	case WM_TRAYMESSAGE: {
 		if (lParam == WM_LBUTTONDBLCLK) {
@@ -329,7 +342,10 @@ void SystemTrayHelper::updateData() {
 
 void SystemTrayHelper::requestUpdate() {
 	// Keep synchronous Explorer calls outside the low-level keyboard hook.
-	if (nid.hWnd) PostMessage(nid.hWnd, WM_REFRESH_TRAY, 0, 0);
+	if (nid.hWnd && !refreshPending) {
+		refreshPending = true;
+		if (!PostMessage(nid.hWnd, WM_REFRESH_TRAY, 0, 0)) refreshPending = false;
+	}
 }
 
 static HINSTANCE ins;
@@ -377,11 +393,14 @@ void SystemTrayHelper::createSystemTrayIcon(const HINSTANCE& hIns) {
 void SystemTrayHelper::removeSystemTray() {
 	if (nid.hWnd) {
 		KillTimer(nid.hWnd, TRAY_RETRY_TIMER);
+		KillTimer(nid.hWnd, TRAY_SETTLE_TIMER);
 		notifyIcon(NIM_DELETE);
 		DestroyWindow(nid.hWnd);
 	}
 	nid = {};
 	iconAdded = false;
+	refreshPending = false;
+	settlePasses = 0;
 	if (popupMenu) DestroyMenu(popupMenu);
 	popupMenu = menuInputType = codeMenu = settingsMenu = toolsMenu = otherCode = nullptr;
 }

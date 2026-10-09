@@ -75,6 +75,9 @@
     <ClInclude Include="VimekHelper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="WindowsInput.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="SystemTrayHelper.h">
       <Filter>Header Files</Filter>
     </ClInclude>

@@ -173,6 +173,7 @@
     <ClInclude Include="VimekDashboard.h" />
     <ClInclude Include="VimekTheme.h" />
     <ClInclude Include="VimekHelper.h" />
+    <ClInclude Include="WindowsInput.h" />
     <ClInclude Include="VimekManager.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="stdafx.h" />

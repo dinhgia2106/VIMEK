@@ -4,9 +4,9 @@
 // Upstream attribution and modifications: see NOTICE.md.
 #include "stdafx.h"
 #include "AppDelegate.h"
+#include "WindowsInput.h"
 
 #pragma comment(lib, "imm32")
-#define IMC_GETOPENSTATUS 0x0005
 
 #define MASK_SHIFT				0x01
 #define MASK_CONTROL			0x02
@@ -32,7 +32,6 @@ extern int vRunWithWindows;
 static HHOOK hKeyboardHook;
 static HHOOK hMouseHook;
 static HWINEVENTHOOK hSystemEvent;
-static KBDLLHOOKSTRUCT* keyboardData;
 static MSLLHOOKSTRUCT* mouseData;
 static vKeyHookState* pData;
 static vector<Uint16> _syncKey;
@@ -54,6 +53,7 @@ static int _languageTemp = 0; //use for smart switch key
 static vector<Byte> savedSmartSwitchKeyData; ////use for smart switch key
 
 static bool _hasJustUsedHotKey = false;
+static bool _gameTextInput = false;
 
 static INPUT backspaceEvent[2];
 static INPUT keyEvent[2];
@@ -438,7 +438,7 @@ static void SendPureCharacter(const Uint16& ch) {
 
 static void handleMacro() {
 	//fix autocomplete
-	if (vFixRecommendBrowser) {
+	if (vFixRecommendBrowser && !_gameTextInput) {
 		SendEmptyCharacter();
 		pData->backspaceCount++;
 	}
@@ -506,34 +506,25 @@ static bool rightAltDown = false;
 static bool languageChordConsumed = false;
 LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 	if (nCode < 0) return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
-	keyboardData = (KBDLLHOOKSTRUCT *)lParam;
-	//ignore my event
-	if (keyboardData->dwExtraInfo != 0) {
-		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
-	}
-	
-	//ignore if IME pad is open when typing Japanese/Chinese...
-	HWND hWnd = GetForegroundWindow();
-	HWND hIME = ImmGetDefaultIMEWnd(hWnd);
-	LRESULT isImeON = SendMessage(hIME, WM_IME_CONTROL, IMC_GETOPENSTATUS, 0);
-	if (isImeON) {
+	// Keep a local copy: Windows may deliver other callbacks while processing
+	// cross-thread messages. Ignore synthetic input, not physical driver tags.
+	const KBDLLHOOKSTRUCT key = *(KBDLLHOOKSTRUCT *)lParam;
+	if (VimekWindowsInput::isInjected(key)) {
 		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
 	}
 	
 	//check modifier key
 	if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) {
-		//LOG(L"Key down: %d\n", keyboardData->vkCode);
-		SetModifierMask((Uint16)keyboardData->vkCode);
+		SetModifierMask((Uint16)key.vkCode);
 	} else if (wParam == WM_KEYUP || wParam == WM_SYSKEYUP) {
-		//LOG(L"Key up: %d\n", keyboardData->vkCode);
-		UnsetModifierMask((Uint16)keyboardData->vkCode);
+		UnsetModifierMask((Uint16)key.vkCode);
 	}
 	if (!_isFlagKey && wParam != WM_KEYUP && wParam != WM_SYSKEYUP)
-		_keycode = (Uint16)keyboardData->vkCode;
+		_keycode = (Uint16)key.vkCode;
 
 	if (chordConfig != vSwitchKeyStatus) { languageChord.reset(); languageChordConsumed=false; chordConfig = vSwitchKeyStatus; }
 	bool down = wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN;
-	if (keyboardData->vkCode == VK_RMENU) rightAltDown = down;
+	if (key.vkCode == VK_RMENU) rightAltDown = down;
 	if (GET_SWITCH_KEY(vSwitchKeyStatus) == 0xFE) {
 		unsigned normalized = ((_flag & MASK_CONTROL) ? 1 : 0) | ((_flag & MASK_ALT) ? 2 : 0) |
 			((_flag & MASK_WIN) ? 4 : 0) | ((_flag & MASK_SHIFT) ? 8 : 0);
@@ -593,6 +584,13 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 	}
 
 	//if is in english mode
+	// Modifiers and mode shortcuts must always be processed, even when the
+	// foreground IME is open or does not respond (for example during a frame).
+	HWND foreground = GetForegroundWindow();
+	_gameTextInput = VimekWindowsInput::usesGameTextInput(foreground);
+	if (down && VimekWindowsInput::queryImeOpen(ImmGetDefaultIMEWnd(foreground)))
+		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
+
 	if (vLanguage == 0) {
 		if (vUseMacro && vUseMacroInEnglishMode && (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN)) {
 			vEnglishMode(((wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) ? vKeyEventState::KeyDown : vKeyEventState::MouseDown),
@@ -635,7 +633,7 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 			return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
 		} else if (pData->code == vWillProcess || pData->code == vRestore || pData->code == vRestoreAndStartNewSession) { //handle result signal
 			//fix autocomplete
-			if (vFixRecommendBrowser && pData->extCode != 4) {
+			if (vFixRecommendBrowser && !_gameTextInput && pData->extCode != 4) {
 				if (vFixChromiumBrowser && 
 					std::find(_chromiumBrowser.begin(), _chromiumBrowser.end(), VimekHelper::getLastAppExecuteName()) != _chromiumBrowser.end()) {
 					SendCombineKey(KEY_LEFT_SHIFT, KEY_LEFT, 0, KEYEVENTF_EXTENDEDKEY);

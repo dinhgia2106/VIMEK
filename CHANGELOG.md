@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-alpha.8
+
+- Giới hạn thời gian chờ IME trên Windows; xử lý phím chuyển Việt/Anh trước khi hỏi trạng thái IME của ứng dụng.
+- Đưa cập nhật cửa sổ và lưu chế độ ra khỏi callback bàn phím; gộp các yêu cầu cập nhật tray liên tiếp và gửi lại trạng thái sau khi đổi chế độ.
+- Không áp dụng mẹo sửa gợi ý trình duyệt cho cửa sổ Unity, gồm Goose Goose Duck.
+- Xử lý phím thật có thông tin bổ sung từ driver bàn phím; bỏ qua các sự kiện phím được phần mềm gửi vào.
+
 ## 0.1.0-alpha.7
 
 - Sửa đồng bộ chế độ Việt/Anh và biểu tượng tray trên Windows; thử lại khi Shell chưa sẵn sàng và khôi phục từ trạng thái hiện tại khi Explorer khởi động lại.

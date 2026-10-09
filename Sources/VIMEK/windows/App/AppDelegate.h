@@ -28,6 +28,7 @@ public:
 	void closeDialog(BaseDialog* dialog);
 public: //event
 	void onInputMethodChangedFromHotKey();
+	virtual void refreshInputMethodUI();
 	void onDefaultConfig();
 
 	void onToggleVietnamese();

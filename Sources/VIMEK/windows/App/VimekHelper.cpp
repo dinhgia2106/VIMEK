@@ -40,9 +40,14 @@ void VimekHelper::openRegistryKey() {
 }
 
 void VimekHelper::setRegInt(LPCTSTR key, const int & val) {
+#ifdef VIMEK_TRAY_TESTING
+	extern void VimekTestSetRegInt(LPCTSTR, int);
+	VimekTestSetRegInt(key, val);
+#else
 	openRegistryKey();
 	RegSetValueEx(hKey, key, 0, REG_DWORD, (LPBYTE)&val, sizeof(val));
 	RegCloseKey(hKey);
+#endif
 }
 
 int VimekHelper::getRegInt(LPCTSTR key, const int & defaultValue) {

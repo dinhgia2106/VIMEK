@@ -45,11 +45,12 @@ int vCheckNewVersion = 0;
 int vFixChromiumBrowser = 0; //new on version 2.0
 
 bool AppDelegate::isDialogMsg(MSG & msg) const {
-	return (mainDialog != NULL && IsDialogMessage(mainDialog->getHwnd(), &msg)) ||
-		(advancedDialog != NULL && IsDialogMessage(advancedDialog->getHwnd(), &msg)) ||
-		(macroDialog != NULL && IsDialogMessage(macroDialog->getHwnd(), &msg)) || 
-		(convertDialog != NULL && IsDialogMessage(convertDialog->getHwnd(), &msg)) || 
-		(aboutDialog != NULL && IsDialogMessage(aboutDialog->getHwnd(), &msg));
+	for (BaseDialog* dialog : { mainDialog, advancedDialog, macroDialog, convertDialog, aboutDialog }) {
+		if (!dialog) continue;
+		HWND window = dialog->getHwnd();
+		if ((msg.hwnd == window || IsChild(window, msg.hwnd)) && IsDialogMessage(window, &msg)) return true;
+	}
+	return false;
 }
 
 void AppDelegate::checkUpdate() {
@@ -145,11 +146,16 @@ void AppDelegate::closeDialog(BaseDialog * dialog) {
 }
 
 void AppDelegate::onInputMethodChangedFromHotKey() {
+	// A keyboard hook must return before any window/Shell work. In particular,
+	// filling an open dashboard may synchronously dispatch more messages.
+	SystemTrayHelper::requestUpdate();
+}
+
+void AppDelegate::refreshInputMethodUI() {
 	APP_SET_DATA(vLanguage, vLanguage);
 	if (mainDialog) {
 		mainDialog->fillData();
 	}
-	SystemTrayHelper::requestUpdate();
 }
 
 void AppDelegate::onDefaultConfig() {

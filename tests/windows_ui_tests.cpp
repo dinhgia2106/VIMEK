@@ -3,6 +3,7 @@
 #include "AppDelegate.h"
 #include "VimekTheme.h"
 #include "VimekDashboard.h"
+#include "WindowsInput.h"
 #include "../Sources/VIMEK/engine/ModifierShortcut.h"
 #include <iostream>
 
@@ -10,8 +11,13 @@
 // retry timers remain native. No icons or settings touch the user's taskbar.
 namespace {
 bool shellAvailable=true,shellHasIcon=false;
+bool deferNextModify=false;
 int shellCalls=0;
+int languageWrites=0, persistedLanguage=-1;
 NOTIFYICONDATA shellIcon={};
+}
+void VimekTestSetRegInt(LPCTSTR key,int value) {
+    if(wcscmp(key,L"vLanguage")==0){++languageWrites;persistedLanguage=value;}
 }
 BOOL WINAPI VimekTestNotifyIcon(DWORD operation, PNOTIFYICONDATA data) {
     ++shellCalls;
@@ -19,6 +25,7 @@ BOOL WINAPI VimekTestNotifyIcon(DWORD operation, PNOTIFYICONDATA data) {
     if(!shellAvailable)return FALSE;
     if(operation==NIM_ADD){if(shellHasIcon)return FALSE;shellHasIcon=true;}
     if(operation==NIM_MODIFY&&!shellHasIcon)return FALSE;
+    if(operation==NIM_MODIFY&&deferNextModify){deferNextModify=false;return TRUE;}
     shellIcon=*data;
     return TRUE;
 }
@@ -44,7 +51,16 @@ void checkTrayMode(int language) {
     LoadString(GetModuleHandle(nullptr),language?IDS_TRAY_TITLE_2:IDS_TRAY_TITLE,tip,128);
     check(wcscmp(shellIcon.szTip,tip)==0,"Tray tooltip matches the engine mode");
 }
+class TrayActions : public AppDelegate {
+public:
+    int refreshes = 0, displayedLanguage = -1;
+    void refreshInputMethodUI() override {
+        AppDelegate::refreshInputMethodUI();
+        ++refreshes; displayedLanguage = vLanguage;
+    }
+};
 void testTrayRecovery() {
+    TrayActions app;
     int savedLanguage=vLanguage,savedGray=vUseGrayIcon,savedSmart=vUseSmartSwitchKey,savedCode=vCodeTable;
     vLanguage=1;vUseGrayIcon=0;vUseSmartSwitchKey=1;
     SystemTrayHelper::createSystemTrayIcon(GetModuleHandle(nullptr));pump();
@@ -64,12 +80,30 @@ void testTrayRecovery() {
             SystemTrayHelper::requestUpdate();
             check(shellCalls==calls,"Hotkey refresh does not call Explorer synchronously");
             pump();checkTrayMode(language);
+            check(app.displayedLanguage==language,"Queued UI refresh reads the latest engine mode");
         }
     }
     vLanguage=0;
     check(!VimekManager::restoreAppLanguage(-1)&&vLanguage==0,"Unknown app keeps the current language");
     vUseSmartSwitchKey=0;
     check(!VimekManager::restoreAppLanguage(1)&&vLanguage==0,"Disabled app memory keeps English active");
+    // An accepted update can precede the hidden tray's next render. Exercise
+    // follow-up submission after success, not just the API failure path.
+    SystemTrayHelper::requestUpdate();pump();checkTrayMode(0);
+    deferNextModify=true;vLanguage=1;
+    app.onInputMethodChangedFromHotKey();pump();
+    checkTrayMode(0);
+    Sleep(300);pump();checkTrayMode(1);
+    int refreshed=app.refreshes;
+    int writes=languageWrites;
+    vLanguage=0;app.onInputMethodChangedFromHotKey();
+    vLanguage=1;app.onInputMethodChangedFromHotKey();
+    vLanguage=0;app.onInputMethodChangedFromHotKey();
+    check(languageWrites==writes,"Keyboard mode changes defer registry work until after the callback");
+    pump();
+    check(app.refreshes==refreshed+1,"Rapid mode changes coalesce into one UI refresh");
+    check(languageWrites==writes+1&&persistedLanguage==0,"UI refresh persists only the latest mode and does not enqueue itself");
+    checkTrayMode(0);
     // Explorer unavailable: the submitted icon may be stale, but retries
     // must use the latest mode after any number of changes, without clicks.
     shellAvailable=false;vLanguage=0;SystemTrayHelper::requestUpdate();pump();
@@ -86,6 +120,62 @@ void testTrayRecovery() {
     SystemTrayHelper::removeSystemTray();pump();
     check(!shellHasIcon&&!IsWindow(owner),"Shutdown removes the icon and retry owner");
     vLanguage=savedLanguage;vUseGrayIcon=savedGray;vUseSmartSwitchKey=savedSmart;vCodeTable=savedCode;
+}
+
+struct ImeWindow {
+    HANDLE ready;
+    HWND window = nullptr;
+    LONG delay = 0, open = 0;
+};
+LRESULT CALLBACK imeWindowProc(HWND window,UINT message,WPARAM wp,LPARAM lp) {
+    if(message==WM_NCCREATE)SetWindowLongPtr(window,GWLP_USERDATA,(LONG_PTR)((CREATESTRUCT*)lp)->lpCreateParams);
+    auto state=(ImeWindow*)GetWindowLongPtr(window,GWLP_USERDATA);
+    if(message==WM_IME_CONTROL) {
+        LONG delay=InterlockedCompareExchange(&state->delay,0,0);
+        if(delay)Sleep(delay);
+        return InterlockedCompareExchange(&state->open,0,0);
+    }
+    if(message==WM_DESTROY){PostQuitMessage(0);return 0;}
+    return DefWindowProc(window,message,wp,lp);
+}
+DWORD WINAPI imeWindowThread(void* data) {
+    auto state=(ImeWindow*)data;
+    WNDCLASSW cls={};cls.hInstance=GetModuleHandle(nullptr);cls.lpszClassName=L"VIMEK-Test-IME";cls.lpfnWndProc=imeWindowProc;
+    RegisterClassW(&cls);
+    state->window=CreateWindowW(cls.lpszClassName,L"",0,0,0,0,0,nullptr,nullptr,cls.hInstance,state);
+    SetEvent(state->ready);
+    if(state->window){MSG msg;while(GetMessage(&msg,nullptr,0,0)>0)DispatchMessage(&msg);}
+    UnregisterClassW(cls.lpszClassName,cls.hInstance);
+    return 0;
+}
+void testWindowsInput() {
+    KBDLLHOOKSTRUCT physical={};physical.dwExtraInfo=0xFF515700;
+    check(!VimekWindowsInput::isInjected(physical),"Physical keyboard events with driver metadata are processed");
+    physical.flags=LLKHF_INJECTED;
+    check(VimekWindowsInput::isInjected(physical),"Injected events cannot recursively enter composition");
+    check(!VimekWindowsInput::queryImeOpen(nullptr),"Missing IME does not disable Vietnamese input");
+    ImeWindow state;state.ready=CreateEvent(nullptr,TRUE,FALSE,nullptr);
+    HANDLE thread=CreateThread(nullptr,0,imeWindowThread,&state,0,nullptr);
+    check(thread&&WaitForSingleObject(state.ready,5000)==WAIT_OBJECT_0&&state.window,"Separate native IME test window starts");
+    if(thread&&state.window) {
+        check(!VimekWindowsInput::queryImeOpen(state.window),"Closed IME permits composition");
+        InterlockedExchange(&state.open,1);
+        check(VimekWindowsInput::queryImeOpen(state.window),"Open IME retains control of composition");
+        InterlockedExchange(&state.delay,300);
+        auto start=GetTickCount64();
+        check(!VimekWindowsInput::queryImeOpen(state.window),"Unresponsive IME cannot block input indefinitely");
+        check(GetTickCount64()-start<150,"Slow foreground message loop returns within the hook budget");
+        PostMessage(state.window,WM_CLOSE,0,0);
+    }
+    if(thread){WaitForSingleObject(thread,5000);CloseHandle(thread);}
+    CloseHandle(state.ready);
+    WNDCLASSW game={};game.hInstance=GetModuleHandle(nullptr);game.lpszClassName=L"UnityWndClass";game.lpfnWndProc=DefWindowProcW;
+    RegisterClassW(&game);
+    HWND window=CreateWindowW(game.lpszClassName,L"",0,0,0,0,0,nullptr,nullptr,game.hInstance,nullptr);
+    check(window&&VimekWindowsInput::usesGameTextInput(window),"Unity text input bypasses the browser space workaround");
+    check(!VimekWindowsInput::usesGameTextInput(nullptr),"Missing window does not imply game compatibility mode");
+    if(window)DestroyWindow(window);
+    UnregisterClassW(game.lpszClassName,game.hInstance);
 }
 LRESULT CALLBACK observeCommands(HWND window,UINT message,WPARAM wp,LPARAM lp,UINT_PTR,DWORD_PTR) {
     // Exercise native input without saving test choices to user preferences.
@@ -321,7 +411,8 @@ int main() {
     testConvertGroups();
     testDashboard();
     testTrayRecovery();
+    testWindowsInput();
     SetThreadDesktop(previous);CloseDesktop(desktop);
-    std::cout<<"Tray recovery and app-mode synchronization, dashboard controls and 20 native tab switches; "<<failures<<" failures\n";
+    std::cout<<"Bounded IME queries, game input policy, tray recovery and app-mode synchronization, dashboard controls and 20 native tab switches; "<<failures<<" failures\n";
     return failures?1:0;
 }
