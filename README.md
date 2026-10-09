@@ -1,45 +1,61 @@
 # VIMEK
 
-Bộ gõ tiếng Việt mã nguồn mở cho Windows và macOS, được phát triển bởi
-[GrazT](https://github.com/dinhgia2106). VIMEK có giao diện gọn nhẹ,
-tự theo chế độ sáng/tối của hệ điều hành và thao tác chuyển Việt/Anh thuận tiện.
+**English** | [Tiếng Việt](README.vi.md)
 
-> VIMEK đang ở giai đoạn alpha. Phản hồi và đóng góp luôn được chào đón.
+An open-source Vietnamese input method for Windows and macOS, developed by
+[GrazT](https://github.com/dinhgia2106). VIMEK offers a compact interface,
+follows your system's light or dark appearance, and makes switching between
+Vietnamese and English easy.
 
-![Giao diện VIMEK](docs/images/dashboard-light.png)
+> VIMEK is in alpha. Feedback and contributions are welcome.
 
-## Tính năng
+![VIMEK interface](docs/images/dashboard-light.png)
 
-- Telex, VNI, Simple Telex 1 và Simple Telex 2.
-- Unicode và các bảng mã tiếng Việt thông dụng.
-- Chuyển Việt/Anh bằng phím tắt hoặc biểu tượng V/E ở khay hệ thống.
-- Âm thanh hệ thống khi chuyển chế độ; có thể tắt trong **Nâng cao**.
-- Kiểm tra chính tả, gõ tắt và nhớ chế độ gõ theo ứng dụng.
-- Công cụ chuyển mã văn bản và tùy chọn khởi động cùng hệ điều hành.
-- Giao diện tự chuyển sáng/tối, hỗ trợ màn hình DPI cao và Retina.
+## Features
 
-## Sử dụng
+- Telex, VNI, Simple Telex 1, and Simple Telex 2.
+- Unicode and common Vietnamese character encodings.
+- Switch between Vietnamese and English with a shortcut or the V/E tray icon.
+- System sound when switching modes, with an option to disable it in **Advanced (Nâng cao)**.
+- Spell checking, text expansion, and per-app input mode memory.
+- Text encoding conversion and an option to launch at login.
+- System light/dark appearance, high-DPI and Retina support.
 
-Mở VIMEK và chọn kiểu gõ trong bảng điều khiển hoặc menu khay hệ thống.
-Biểu tượng **V** là chế độ tiếng Việt, **E** là chế độ tiếng Anh.
-Để tránh xung đột, tắt các bộ gõ khác và chọn bàn phím **ENG** trên Windows
-hoặc **ABC/U.S.** trên macOS.
+## Download
 
-Phím chuyển mặc định là **Ctrl+Alt** trên Windows, **Control+Option** trên macOS. Thay đổi phím tắt hoặc tắt âm thanh tại **Nâng cao**.
+Download a build from [GitHub Releases](https://github.com/dinhgia2106/VIMEK/releases).
 
-| Kiểu gõ | Gõ | Kết quả |
+- **Windows:** choose x64 or x86, extract the ZIP, and run VIMEK.
+- **macOS:** the universal build supports Intel and Apple Silicon on macOS 11 or later. Extract the ZIP and move VIMEK to **Applications**.
+
+Current Windows alpha builds are unsigned. macOS builds are signed ad-hoc and
+are not notarized with an Apple Developer ID.
+
+## Usage
+
+Open VIMEK and choose an input method in the control panel or tray menu.
+The **V** icon indicates Vietnamese mode; **E** indicates English mode.
+To avoid conflicts, disable other input methods and select **ENG** on Windows
+or **ABC/U.S.** on macOS.
+
+The default shortcut is **Ctrl+Alt** on Windows and **Control+Option** on macOS.
+Hold Ctrl/Control and press and release Alt/Option to switch; repeat while
+holding Ctrl/Control to switch again. Change the shortcut or disable the sound
+in **Advanced (Nâng cao)**.
+
+| Input method | Type | Result |
 | --- | --- | --- |
 | Telex | `Tooi yeeu tieengs Vieetj` | Tôi yêu tiếng Việt |
 | VNI | `tie6ng1 Vie6t5` | tiếng Việt |
 
-Trên macOS, cấp quyền **Accessibility** trong **System Settings → Privacy & Security**
-khi ứng dụng yêu cầu, sau đó mở lại VIMEK.
+On macOS, grant **Accessibility** permission in **System Settings → Privacy & Security**
+when prompted, then reopen VIMEK.
 
-## Build từ mã nguồn
+## Build from source
 
 ### Windows
 
-Dùng Visual Studio 2022 với workload **Desktop development with C++** và CMake:
+Use Visual Studio 2022 or later with the **Desktop development with C++** workload and CMake:
 
 ```powershell
 cmake -S . -B build/vs -A x64
@@ -47,11 +63,11 @@ cmake --build build/vs --config Release
 ctest --test-dir build/vs -C Release --output-on-failure
 ```
 
-Đầu ra: `build/vs/Release/VIMEK.exe`.
-Bạn cũng có thể mở `Sources/VIMEK/windows/VIMEK.sln` trong Visual Studio.
+Output: `build/vs/Release/VIMEK.exe`.
+You can also open `Sources/VIMEK/windows/VIMEK.sln` in Visual Studio.
 
-Với [LLVM-MinGW UCRT](https://github.com/mstorsjo/llvm-mingw/releases),
-giải nén toolchain vào `.tools/` hoặc truyền đường dẫn thư mục `bin`:
+With [LLVM-MinGW UCRT](https://github.com/mstorsjo/llvm-mingw/releases),
+extract the toolchain into `.tools/` or provide its `bin` directory:
 
 ```powershell
 ./scripts/build-windows.ps1
@@ -59,28 +75,28 @@ giải nén toolchain vào `.tools/` hoặc truyền đường dẫn thư mục 
 ./scripts/build-windows.ps1 -TestsOnly
 ```
 
-Đầu ra mặc định là `dist/x64/VIMEK64.exe`. Thêm `-Platform x86` để build bản 32-bit.
-Đóng VIMEK đang chạy trước khi build vào cùng thư mục.
+The default output is `dist/x64/VIMEK64.exe`. Add `-Platform x86` for a 32-bit build.
+Close any running VIMEK instance before building into the same directory.
 
 ### macOS
 
-Cần macOS 11 trở lên và Xcode với Command Line Tools:
+Requires macOS 11 or later and Xcode with Command Line Tools:
 
 ```bash
 bash scripts/build-macos.sh
 ```
 
-Đầu ra là `dist/macos/VIMEK.app`, hỗ trợ Intel và Apple Silicon.
-Xem [hướng dẫn macOS](macOS_Build.md) để biết thêm về cài đặt và ký ứng dụng.
+Output: `dist/macos/VIMEK.app`, supporting Intel and Apple Silicon.
+See the [macOS guide (Vietnamese)](macOS_Build.md) for installation and signing details.
 
-## Đóng góp
+## Contributing
 
-Báo lỗi, đề xuất tính năng và pull request đều được chào đón.
-Xem [CONTRIBUTING.md](CONTRIBUTING.md) để bắt đầu.
+Bug reports, feature suggestions, and pull requests are welcome.
+See [CONTRIBUTING.md (Vietnamese)](CONTRIBUTING.md) to get started.
 
-## Tác giả và giấy phép
+## Author and license
 
-VIMEK được phát triển và duy trì bởi **GrazT**.
-Dự án sử dụng giấy phép [GNU GPL v3](LICENSE) và kế thừa mã nguồn
-[OpenKey](https://github.com/tuyenvm/OpenKey) của Mai Vũ Tuyên.
-Ghi nhận bản quyền và thành phần bên thứ ba tại [NOTICE.md](NOTICE.md).
+VIMEK is developed and maintained by **GrazT**.
+The project is licensed under [GNU GPL v3](LICENSE) and builds on
+[OpenKey](https://github.com/tuyenvm/OpenKey) by Mai Vũ Tuyên.
+See [NOTICE.md](NOTICE.md) for copyright and third-party acknowledgments.

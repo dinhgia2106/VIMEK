@@ -14,7 +14,8 @@ try {
     $vimekBinary = Join-Path $vimekBinaryDir "VIMEK$vimekBits.exe"
     if (-not (Test-Path -LiteralPath $vimekBinary)) { throw 'Run build-windows.ps1 first.' }
     Copy-Item README.md "$vimekBinaryDir/README.md"
-    Compress-Archive -Path $vimekBinary,"$vimekBinaryDir/LICENSE","$vimekBinaryDir/NOTICE.md","$vimekBinaryDir/README.md" -DestinationPath "dist/VIMEK-$Version-Windows-$Platform.zip" -Force
+    Copy-Item README.vi.md "$vimekBinaryDir/README.vi.md"
+    Compress-Archive -Path $vimekBinary,"$vimekBinaryDir/LICENSE","$vimekBinaryDir/NOTICE.md","$vimekBinaryDir/README.md","$vimekBinaryDir/README.vi.md" -DestinationPath "dist/VIMEK-$Version-Windows-$Platform.zip" -Force
 
     # Include actual working-tree changes and new files, preserving directories.
     # Exclude the Git database, compiler and outputs via .gitignore.
