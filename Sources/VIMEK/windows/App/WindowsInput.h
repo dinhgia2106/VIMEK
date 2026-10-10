@@ -5,6 +5,11 @@
 #include <cwchar>
 
 namespace VimekWindowsInput {
+struct Diagnostics {
+    bool enabled = false;
+    unsigned long physical = 0, injected = 0, tagged = 0, imeOpen = 0, imeTimeout = 0;
+};
+inline Diagnostics& diagnostics() { static Diagnostics value; return value; }
 // Driver-supplied extra information is not an injected keystroke. Some
 // keyboards attach it to physical events, including inside games.
 inline bool isInjected(const KBDLLHOOKSTRUCT& key) {
@@ -16,8 +21,11 @@ inline bool queryImeOpen(HWND ime) {
     DWORD_PTR open = 0;
     // Never let a game's message loop block our keyboard hook or tray.
     // BLOCK also prevents another hook callback re-entering engine state.
-    return SendMessageTimeoutW(ime, WM_IME_CONTROL, 0x0005, 0,
-        SMTO_BLOCK | SMTO_ABORTIFHUNG | SMTO_ERRORONEXIT, 10, &open) && open;
+    bool replied = SendMessageTimeoutW(ime, WM_IME_CONTROL, 0x0005, 0,
+        SMTO_BLOCK | SMTO_ABORTIFHUNG | SMTO_ERRORONEXIT, 10, &open) != 0;
+    if (!replied) ++diagnostics().imeTimeout;
+    else if (open) ++diagnostics().imeOpen;
+    return replied && open;
 }
 
 inline bool usesGameTextInput(HWND window) {

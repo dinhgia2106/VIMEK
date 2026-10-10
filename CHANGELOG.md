@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-alpha.9
+
+- Tăng chiều cao chữ V/E ở tray Windows khoảng 42%, giữ viền trắng và nền trong suốt.
+- Mặc định dùng một chế độ Việt/Anh chung cho các ứng dụng trên Windows; vẫn có thể bật nhớ chế độ riêng trong Nâng cao.
+- Thêm chế độ chẩn đoán trạng thái gõ và cập nhật tray, không ghi nội dung phím gõ.
+
 ## 0.1.0-alpha.8
 
 - Giới hạn thời gian chờ IME trên Windows; xử lý phím chuyển Việt/Anh trước khi hỏi trạng thái IME của ứng dụng.

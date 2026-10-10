@@ -1,10 +1,16 @@
 # Original VIMEK vector geometry -> transparent PNG, ICO and ICNS. No external tools.
+param([switch]$TrayOnly)
 $ErrorActionPreference = 'Stop'
 $vimekRoot = Split-Path -Parent $PSScriptRoot
 $vimekBrand = Join-Path $vimekRoot 'assets/brand'
 New-Item -ItemType Directory -Force $vimekBrand | Out-Null
 Add-Type -AssemblyName System.Drawing
-Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @'
+# Load drawing dependencies before compiling, including the split Windows
+# drawing assemblies in newer PowerShell/.NET versions.
+$vimekDrawingProbe = [System.Drawing.Bitmap]::new(1,1)
+$vimekDrawingProbe.Dispose()
+$vimekDrawingAssemblies = [AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { $_.GetName().Name -match '^(System.Drawing|System.Private.Windows)' } | Select-Object -ExpandProperty Location -Unique
+Add-Type -ReferencedAssemblies $vimekDrawingAssemblies -TypeDefinition @'
 using System;
 using System.IO;
 using System.Drawing;
@@ -21,13 +27,23 @@ public static class VimekIcons {
         string points="";foreach(var p in Shape(english))points+=p.X+","+p.Y+" ";
         return "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\"><g fill=\"none\" stroke-linejoin=\"round\"><polygon points=\""+points+"\" stroke=\"#171b22\" stroke-opacity=\".72\" stroke-width=\"2.8\"/><polygon points=\""+points+"\" stroke=\"white\" stroke-width=\"1.65\"/></g></svg>";
     }
-    public static byte[] Png(bool english,int size) {
+    public static byte[] Png(bool english,int size,bool tray=false) {
         int ss=size<256?8:2;
         using(var canvas=new Bitmap(size*ss,size*ss,PixelFormat.Format32bppArgb)) {
             using(var g=Graphics.FromImage(canvas)) {
                 g.Clear(Color.Transparent);g.SmoothingMode=SmoothingMode.AntiAlias;
                 using(var path=new GraphicsPath()) {
-                    path.AddPolygon(Shape(english));using(var m=new Matrix()){m.Scale(size*ss/64f,size*ss/64f);path.Transform(m);}
+                    var points=Shape(english);
+                    if(tray) {
+                        // Use the notification area's full height. App/brand
+                        // assets retain their padding; tray letters need to
+                        // remain legible in a 16px slot at 100% display scale.
+                        float centerX=english?32.5f:32f;
+                        for(int i=0;i<points.Length;i++)points[i]=new PointF(
+                            32+(points[i].X-centerX)*54f/38f,
+                            32+(points[i].Y-32)*54f/38f);
+                    }
+                    path.AddPolygon(points);using(var m=new Matrix()){m.Scale(size*ss/64f,size*ss/64f);path.Transform(m);}
                     float width=Math.Max(size/64f*1.65f,0.95f)*ss;
                     using(var shadow=new Pen(Color.FromArgb(185,23,27,34),width+Math.Max(size/64f*1.15f,0.65f)*ss)){
                         shadow.LineJoin=LineJoin.Round;g.DrawPath(shadow,path);
@@ -41,9 +57,9 @@ public static class VimekIcons {
             }
         }
     }
-    public static void Ico(string file,bool english) {
+    public static void Ico(string file,bool english,bool tray=false) {
         int[] sizes={16,20,24,32,40,48,64,128,256};var pngs=new byte[sizes.Length][];
-        for(int i=0;i<sizes.Length;i++)pngs[i]=Png(english,sizes[i]);
+        for(int i=0;i<sizes.Length;i++)pngs[i]=Png(english,sizes[i],tray);
         using(var w=new BinaryWriter(File.Create(file))) {
             w.Write((ushort)0);w.Write((ushort)1);w.Write((ushort)sizes.Length);int offset=6+16*sizes.Length;
             for(int i=0;i<sizes.Length;i++){w.Write((byte)(sizes[i]==256?0:sizes[i]));w.Write((byte)(sizes[i]==256?0:sizes[i]));w.Write((ushort)0);w.Write((ushort)1);w.Write((ushort)32);w.Write(pngs[i].Length);w.Write(offset);offset+=pngs[i].Length;}
@@ -64,11 +80,12 @@ $vimekWin = Join-Path $vimekRoot 'Sources/VIMEK/windows/App'
 $vimekMac = Join-Path $vimekRoot 'Sources/VIMEK/macOS/App/Resources'
 foreach ($vimekEnglish in @($false,$true)) {
     $vimekLetter = if ($vimekEnglish) { 'e' } else { 'v' }
+    $vimekStatus = if ($vimekEnglish) { 'StatusEng' } else { 'StatusViet' }
+    [VimekIcons]::Ico((Join-Path $vimekWin "$vimekStatus.ico"),$vimekEnglish,$true)
+    [VimekIcons]::Ico((Join-Path $vimekWin "$($vimekStatus)10.ico"),$vimekEnglish,$true)
+    if ($TrayOnly) { continue }
     [IO.File]::WriteAllText((Join-Path $vimekBrand "$vimekLetter.svg"),[VimekIcons]::Svg($vimekEnglish))
     [IO.File]::WriteAllBytes((Join-Path $vimekBrand "$vimekLetter.png"),[VimekIcons]::Png($vimekEnglish,256))
-    $vimekStatus = if ($vimekEnglish) { 'StatusEng' } else { 'StatusViet' }
-    [VimekIcons]::Ico((Join-Path $vimekWin "$vimekStatus.ico"),$vimekEnglish)
-    [VimekIcons]::Ico((Join-Path $vimekWin "$($vimekStatus)10.ico"),$vimekEnglish)
     $vimekMacStatus = if ($vimekEnglish) { 'StatusEng' } else { 'Status' }
     $vimekMacHighlight = if ($vimekEnglish) { 'StatusHighlightedEng' } else { 'StatusHighlighted' }
     foreach ($vimekName in @($vimekMacStatus,$vimekMacHighlight)) {
@@ -76,6 +93,8 @@ foreach ($vimekEnglish in @($false,$true)) {
         [IO.File]::WriteAllBytes((Join-Path $vimekMac "$vimekName@2x.png"),[VimekIcons]::Png($vimekEnglish,36))
     }
 }
-[VimekIcons]::Ico((Join-Path $vimekWin 'icon.ico'),$false)
-[VimekIcons]::Icns((Join-Path $vimekMac 'Icon.icns'))
-Write-Host 'Generated VIMEK V/E assets (transparent outline, 9 ICO sizes, 7 ICNS sizes).'
+if (-not $TrayOnly) {
+    [VimekIcons]::Ico((Join-Path $vimekWin 'icon.ico'),$false)
+    [VimekIcons]::Icns((Join-Path $vimekMac 'Icon.icns'))
+}
+Write-Host 'Generated larger Windows tray V/E icons (transparent outline, 9 ICO sizes).'

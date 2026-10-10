@@ -61,12 +61,17 @@ public:
 };
 void testTrayRecovery() {
     TrayActions app;
+    bool savedDiagnostics=VimekWindowsInput::diagnostics().enabled;
+    VimekWindowsInput::diagnostics().enabled=true;
     int savedLanguage=vLanguage,savedGray=vUseGrayIcon,savedSmart=vUseSmartSwitchKey,savedCode=vCodeTable;
     vLanguage=1;vUseGrayIcon=0;vUseSmartSwitchKey=1;
     SystemTrayHelper::createSystemTrayIcon(GetModuleHandle(nullptr));pump();
     HWND owner=FindWindow(APP_CLASS,nullptr);
     check(owner!=nullptr,"Tray owns a hidden native window");
     checkTrayMode(1);
+    wchar_t diagnostic[512]={};GetWindowTextW(owner,diagnostic,512);
+    check(wcsstr(diagnostic,L"mode=1 tray=1 shell=1")!=nullptr,"Hidden diagnostics report mode and actual Shell submission result");
+    check(!IsWindowVisible(owner),"Diagnostic state does not add text to the app interface");
     // The mode and encoding share one persisted byte. English must remain
     // zero even when a non-Unicode encoding is restored for another app.
     for(int code=0;code<5;++code) {
@@ -120,6 +125,7 @@ void testTrayRecovery() {
     SystemTrayHelper::removeSystemTray();pump();
     check(!shellHasIcon&&!IsWindow(owner),"Shutdown removes the icon and retry owner");
     vLanguage=savedLanguage;vUseGrayIcon=savedGray;vUseSmartSwitchKey=savedSmart;vCodeTable=savedCode;
+    VimekWindowsInput::diagnostics().enabled=savedDiagnostics;
 }
 
 struct ImeWindow {

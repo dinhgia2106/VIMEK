@@ -4,12 +4,14 @@
 // Upstream attribution and modifications: see NOTICE.md.
 #include "SystemTrayHelper.h"
 #include "AppDelegate.h"
+#include "WindowsInput.h"
 
 #define WM_TRAYMESSAGE (WM_USER + 1)
 #define TRAY_ICONUID 100
 #define WM_REFRESH_TRAY (WM_APP + 20)
 #define TRAY_RETRY_TIMER 101
 #define TRAY_SETTLE_TIMER 102
+#define TRAY_DIAGNOSTIC_TIMER 103
 
 #define POPUP_VIET_ON_OFF 900
 #define POPUP_SPELLING 901
@@ -49,6 +51,23 @@ static NOTIFYICONDATA nid;
 static bool iconAdded = false;
 static bool refreshPending = false;
 static int settlePasses = 0;
+static int submittedLanguage = -1;
+static BOOL shellResult = FALSE;
+static DWORD postError = 0;
+static unsigned long requests = 0, updates = 0;
+
+static void updateDiagnosticTitle(HWND window) {
+	if (!VimekWindowsInput::diagnostics().enabled) return;
+	const auto& data = VimekWindowsInput::diagnostics();
+	wchar_t title[512] = {};
+	swprintf(title, 512,
+		L"VIMEK diag tick=%llu mode=%d tray=%d shell=%d pending=%d postError=%lu smart=%d requests=%lu updates=%lu physical=%lu injected=%lu tagged=%lu imeOpen=%lu imeTimeout=%lu",
+		GetTickCount64(), vLanguage, submittedLanguage, int(shellResult), int(refreshPending), postError,
+		vUseSmartSwitchKey, requests, updates, data.physical, data.injected, data.tagged, data.imeOpen, data.imeTimeout);
+	// A read-only diagnostic surface, available across integrity levels via
+	// GetWindowText. The tray owner stays hidden; no typed text is recorded.
+	SetWindowTextW(window, title);
+}
 #ifdef VIMEK_TRAY_TESTING
 extern BOOL WINAPI VimekTestNotifyIcon(DWORD, PNOTIFYICONDATA);
 #endif
@@ -91,6 +110,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		// Explorer runs at normal integrity even when VIMEK is elevated.
 		ChangeWindowMessageFilterEx(hWnd, taskbarCreated, MSGFLT_ALLOW, nullptr);
 		ChangeWindowMessageFilterEx(hWnd, WM_TRAYMESSAGE, MSGFLT_ALLOW, nullptr);
+		if (VimekWindowsInput::diagnostics().enabled) SetTimer(hWnd, TRAY_DIAGNOSTIC_TIMER, 500, nullptr);
 		break;
 	case WM_USER+2019:
 		AppDelegate::getInstance()->onControlPanel();
@@ -110,6 +130,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 			SystemTrayHelper::updateData();
 			if (--settlePasses <= 0) KillTimer(hWnd, TRAY_SETTLE_TIMER);
 		}
+		else if (wParam == TRAY_DIAGNOSTIC_TIMER) updateDiagnosticTitle(hWnd);
 		break;
 	case WM_TRAYMESSAGE: {
 		if (lParam == WM_LBUTTONDBLCLK) {
@@ -278,8 +299,12 @@ void SystemTrayHelper::updateData() {
 		bool updated = iconAdded && notifyIcon(NIM_MODIFY);
 		if (!updated) updated = notifyIcon(NIM_ADD) || notifyIcon(NIM_MODIFY);
 		iconAdded = updated;
+		submittedLanguage = vLanguage;
+		shellResult = updated;
+		++updates;
 		if (updated) KillTimer(nid.hWnd, TRAY_RETRY_TIMER);
 		else SetTimer(nid.hWnd, TRAY_RETRY_TIMER, 1000, nullptr);
+		updateDiagnosticTitle(nid.hWnd);
 	}
 
 	MODIFY_MENU(popupMenu, POPUP_VIET_ON_OFF, vLanguage);
@@ -342,9 +367,13 @@ void SystemTrayHelper::updateData() {
 
 void SystemTrayHelper::requestUpdate() {
 	// Keep synchronous Explorer calls outside the low-level keyboard hook.
+	++requests;
 	if (nid.hWnd && !refreshPending) {
 		refreshPending = true;
-		if (!PostMessage(nid.hWnd, WM_REFRESH_TRAY, 0, 0)) refreshPending = false;
+		if (!PostMessage(nid.hWnd, WM_REFRESH_TRAY, 0, 0)) {
+			postError = GetLastError();
+			refreshPending = false;
+		} else postError = 0;
 	}
 }
 
@@ -394,6 +423,7 @@ void SystemTrayHelper::removeSystemTray() {
 	if (nid.hWnd) {
 		KillTimer(nid.hWnd, TRAY_RETRY_TIMER);
 		KillTimer(nid.hWnd, TRAY_SETTLE_TIMER);
+		KillTimer(nid.hWnd, TRAY_DIAGNOSTIC_TIMER);
 		notifyIcon(NIM_DELETE);
 		DestroyWindow(nid.hWnd);
 	}

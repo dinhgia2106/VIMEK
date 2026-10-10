@@ -2,6 +2,8 @@ VIMEK là bộ gõ tiếng Việt cho Windows, macOS và Linux, do GrazT phát t
 
 - Telex, VNI và hai biến thể Simple Telex.
 - Giao diện theo chế độ sáng/tối của hệ điều hành, biểu tượng V/E.
+- Chữ V/E ở tray Windows lớn hơn, giữ viền trắng trong suốt và hỗ trợ nhiều mức DPI.
+- Windows mặc định dùng chung chế độ Việt/Anh giữa các ứng dụng. Có thể bật nhớ chế độ riêng trong Nâng cao.
 - Bảng điều khiển gọn hơn: biểu tượng V/E ở bên phải, cùng hàng với VIMEK; chế độ ngôn ngữ hiển thị trên hai nút bên dưới.
 - Bấm nút phím chuyển trên Windows để đổi Ctrl+Alt ↔ Ctrl+Shift và dùng ngay, giữ nguyên lựa chọn âm thanh.
 - Tùy chọn Chạy với quyền Admin và Khởi động cùng Windows ngay trong bảng điều khiển; kiểm tra chính tả và nhớ chế độ theo ứng dụng nằm trong Nâng cao.
@@ -19,7 +21,7 @@ VIMEK là bộ gõ tiếng Việt cho Windows, macOS và Linux, do GrazT phát t
 
 Tải bản Windows x64 hoặc x86 phù hợp với máy, giải nén và chạy VIMEK. Bản macOS universal hỗ trợ Intel và Apple Silicon từ macOS 11; giải nén, đưa VIMEK vào Applications và cấp quyền Accessibility khi được yêu cầu.
 
-Linux: tải gói `.deb` amd64, cài bằng `sudo apt install ./VIMEK-0.1.0-alpha.8-Linux-amd64.deb`, đăng xuất rồi đăng nhập lại và thêm Vietnamese → VIMEK trong nguồn nhập liệu. Xem [hướng dẫn Linux](https://github.com/dinhgia2106/VIMEK/blob/main/Linux_Build.md).
+Linux: tải gói `.deb` amd64, cài bằng `sudo apt install ./VIMEK-0.1.0-alpha.9-Linux-amd64.deb`, đăng xuất rồi đăng nhập lại và thêm Vietnamese → VIMEK trong nguồn nhập liệu. Xem [hướng dẫn Linux](https://github.com/dinhgia2106/VIMEK/blob/main/Linux_Build.md).
 
 Bản Windows hiện chưa có chữ ký số. Bản macOS được ký ad-hoc, chưa được notarize bằng Apple Developer ID. Đây là bản Alpha để thử nghiệm và nhận phản hồi.
 

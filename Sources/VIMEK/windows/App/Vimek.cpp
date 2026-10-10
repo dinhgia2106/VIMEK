@@ -101,7 +101,7 @@ void VimekInit() {
 	APP_GET_DATA(vShowOnStartUp, 1);
 	APP_GET_DATA(vRunWithWindows, 0);
 	VimekHelper::registerRunOnStartup(vRunWithWindows);
-	APP_GET_DATA(vUseSmartSwitchKey, 1);
+	APP_GET_DATA(vUseSmartSwitchKey, 0);
 	APP_GET_DATA(vUpperCaseFirstChar, 0);
 	APP_GET_DATA(vAllowConsonantZFWJ, 0);
 	APP_GET_DATA(vTempOffSpelling, 0);
@@ -510,8 +510,11 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 	// cross-thread messages. Ignore synthetic input, not physical driver tags.
 	const KBDLLHOOKSTRUCT key = *(KBDLLHOOKSTRUCT *)lParam;
 	if (VimekWindowsInput::isInjected(key)) {
+		++VimekWindowsInput::diagnostics().injected;
 		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
 	}
+	++VimekWindowsInput::diagnostics().physical;
+	if (key.dwExtraInfo) ++VimekWindowsInput::diagnostics().tagged;
 	
 	//check modifier key
 	if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) {
