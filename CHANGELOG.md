@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-alpha.11
+
+- Windows: thêm nút bật/tắt Gợi ý dấu bằng AI (thử nghiệm) ngay trên bảng điều khiển, dưới Phím chuyển Việt/Anh; vẫn có trong menu tray.
+- Website: ảnh bảng điều khiển mới và giới thiệu gợi ý dấu bằng AI.
+
 ## 0.1.0-alpha.10
 
 - Windows: thêm gợi ý dấu bằng AI (thử nghiệm, tắt mặc định), chạy song song với Telex: Space nhận gợi ý 1, phím 1-5 chọn gợi ý, Esc giữ chữ đã gõ. Model chạy ở server cục bộ của vi-restore-llm.
