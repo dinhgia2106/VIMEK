@@ -1,6 +1,6 @@
 # Changelog
 
-## Chưa phát hành
+## 0.1.0-alpha.12
 
 - Gợi ý dấu bằng AI chỉ áp dụng cho từ đang gõ (từ đầu câu hoặc sau dấu cách); các từ trước không bị sửa, và từ đã gõ dấu bằng Telex không được gợi ý.
 - Ô gợi ý tìm vị trí con trỏ qua UI Automation trước (trình duyệt, Office), việc tìm chạy ở luồng nền.
