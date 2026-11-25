@@ -32,7 +32,7 @@
       familiarSimple: "Familiar by feel.\nSimple by design.",
       typeYourWay: "Type your way.",
       typeYourWayBody:
-        "Telex, VNI, and two Simple Telex variants. Keep the rhythm you've always used.",
+        "Telex, VNI, and two Simple Telex variants. Keep the rhythm you've always used. On Windows, experimental AI suggestions can add the accents for you.",
       oneEasySwitch: "One easy switch.",
       oneEasySwitchBody:
         "Hold Ctrl, tap Alt. Switch between Vietnamese and English as often as you need, with an optional system sound.",
@@ -99,7 +99,7 @@
       familiarSimple: "Quen thuộc khi gõ.\nTinh gọn khi dùng.",
       typeYourWay: "Gõ theo cách của bạn.",
       typeYourWayBody:
-        "Telex, VNI và hai biến thể Simple Telex. Giữ nguyên thói quen gõ bạn đã quen thuộc.",
+        "Telex, VNI và hai biến thể Simple Telex. Giữ nguyên thói quen gõ bạn đã quen thuộc. Trên Windows có thêm gợi ý dấu bằng AI (thử nghiệm).",
       oneEasySwitch: "Chuyển đổi thật nhẹ nhàng.",
       oneEasySwitchBody:
         "Giữ Ctrl, bấm Alt. Chuyển Việt/Anh nhiều lần khi cần, kèm âm thanh hệ thống có thể tắt.",
