@@ -1,5 +1,9 @@
 # Changelog
 
+## Chưa phát hành
+
+- Windows: thêm gợi ý dấu bằng AI (thử nghiệm, tắt mặc định), chạy song song với Telex: Space nhận gợi ý 1, phím 1-5 chọn gợi ý, Esc giữ chữ đã gõ. Model chạy ở server cục bộ của vi-restore-llm.
+
 ## 0.1.0-alpha.9
 
 - Tăng chiều cao chữ V/E ở tray Windows khoảng 42%, giữ viền trắng và nền trong suốt.

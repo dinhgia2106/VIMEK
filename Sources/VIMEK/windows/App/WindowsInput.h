@@ -10,6 +10,10 @@ struct Diagnostics {
     unsigned long physical = 0, injected = 0, tagged = 0, imeOpen = 0, imeTimeout = 0;
 };
 inline Diagnostics& diagnostics() { static Diagnostics value; return value; }
+// --test-input: handle only synthetic keys carrying this tag and let physical keys through,
+// so an automated test can drive the hook without touching the person's own typing.
+const ULONG_PTR TEST_INPUT_TAG = 0x56494D4B;
+inline bool& testInput() { static bool value = false; return value; }
 // Driver-supplied extra information is not an injected keystroke. Some
 // keyboards attach it to physical events, including inside games.
 inline bool isInjected(const KBDLLHOOKSTRUCT& key) {

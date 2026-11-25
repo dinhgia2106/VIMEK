@@ -35,6 +35,7 @@ public: //event
 	void onToggleCheckSpelling();
 	void onToggleUseSmartSwitchKey();
 	void onToggleUseMacro();
+	void onToggleAiSuggest();
 	virtual void onSwitchShortcut(int status);
 	virtual void onRunWithWindows(bool enabled);
 	virtual void onRunAsAdmin(bool enabled, HWND owner);

@@ -16,6 +16,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	UNREFERENCED_PARAMETER(hPrevInstance);
 	UNREFERENCED_PARAMETER(lpCmdLine);
 	VimekWindowsInput::diagnostics().enabled = wcsstr(lpCmdLine, L"--diagnostics") != nullptr;
+	VimekWindowsInput::testInput() = wcsstr(lpCmdLine, L"--test-input") != nullptr;
 	if(wcsstr(lpCmdLine,L"--render-previews")) {
 		CreateDirectoryW(L"build",nullptr);CreateDirectoryW(L"build/ui",nullptr);
 		return VimekDashboard::renderPreview(false,L"build/ui/dashboard-light.png") &&
@@ -39,7 +40,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 #if NDEBUG
 	//check the program is run as administrator mode
 	APP_GET_DATA(vRunAsAdmin, 0);
-	if (vRunAsAdmin && !IsUserAnAdmin()) {
+	if (vRunAsAdmin && !IsUserAnAdmin() && !VimekWindowsInput::testInput()) {
 		//create admin process
 		ShellExecute(0, L"runas", VimekHelper::getFullPath().c_str(), lpCmdLine, 0, SW_SHOWNORMAL);
 		return 1;

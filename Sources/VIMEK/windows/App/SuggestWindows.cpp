@@ -1,0 +1,341 @@
+// Copyright (C) 2026 GrazT. SPDX-License-Identifier: GPL-3.0-only
+#include "stdafx.h"
+#include "SuggestWindows.h"
+#include "VimekTheme.h"
+#include <winhttp.h>
+#include <oleacc.h>
+#include <chrono>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
+
+#pragma comment(lib, "winhttp")
+#pragma comment(lib, "oleacc")
+
+int vAiSuggest = 0;
+int vAiSuggestPort = 8765;
+
+namespace {
+const UINT WM_SUGGEST_REPLY = WM_APP + 0x51;
+const wchar_t POPUP_CLASS[] = L"VimekSuggestPopup";
+const size_t SHOWN = 5;    // digits 1-5
+const int REQUEST_K = 10;  // ask for more: several candidates can share one window
+
+struct Reply {
+    std::wstring request;
+    size_t start = 0;
+    std::vector<std::wstring> windows;
+};
+
+SuggestRun theRun;
+HWND popup = nullptr;
+std::vector<std::wstring> shown;
+HFONT textFont = nullptr, numberFont = nullptr;
+int scale = 96;
+
+// Shared with the worker thread.
+std::mutex mu;
+std::condition_variable cv;
+std::thread worker;
+bool stopping = false, queued = false, hasReply = false;
+std::wstring queuedRequest, wantedRequest;
+size_t queuedStart = 0, wantedStart = (size_t)-1;
+Reply latest;
+
+int px(int value) { return MulDiv(value, scale, 96); }
+
+std::string post(HINTERNET session, const std::string& body) {
+    std::string out;
+    HINTERNET connection = WinHttpConnect(session, L"127.0.0.1", (INTERNET_PORT)vAiSuggestPort, 0);
+    if (!connection) return out;
+    HINTERNET request = WinHttpOpenRequest(connection, L"POST", L"/candidates", nullptr, WINHTTP_NO_REFERER,
+                                           WINHTTP_DEFAULT_ACCEPT_TYPES, 0);
+    if (request) {
+        const wchar_t headers[] = L"Content-Type: application/json\r\n";
+        if (WinHttpSendRequest(request, headers, (DWORD)-1L, (LPVOID)body.data(), (DWORD)body.size(),
+                               (DWORD)body.size(), 0) &&
+            WinHttpReceiveResponse(request, nullptr)) {
+            DWORD status = 0, size = sizeof(status);
+            WinHttpQueryHeaders(request, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+                                WINHTTP_HEADER_NAME_BY_INDEX, &status, &size, WINHTTP_NO_HEADER_INDEX);
+            DWORD available = 0;
+            while (status == 200 && WinHttpQueryDataAvailable(request, &available) && available) {
+                std::string chunk(available, '\0');
+                DWORD read = 0;
+                if (!WinHttpReadData(request, &chunk[0], available, &read) || !read) break;
+                out.append(chunk.data(), read);
+            }
+        }
+        WinHttpCloseHandle(request);
+    }
+    WinHttpCloseHandle(connection);
+    return out;
+}
+
+void workerLoop() {
+    HINTERNET session = WinHttpOpen(L"VIMEK", WINHTTP_ACCESS_TYPE_NO_PROXY, WINHTTP_NO_PROXY_NAME,
+                                    WINHTTP_NO_PROXY_BYPASS, 0);
+    // A local server answers in tens of milliseconds; never let a dead one pile up requests.
+    if (session) WinHttpSetTimeouts(session, 300, 300, 300, 1000);
+    for (;;) {
+        Reply reply;
+        {
+            std::unique_lock<std::mutex> lock(mu);
+            cv.wait(lock, [] { return stopping || queued; });
+            if (stopping) break;
+            reply.request = queuedRequest;
+            reply.start = queuedStart;
+            queued = false;
+        }
+        std::vector<std::wstring> candidates;
+        if (session && suggestParseCandidates(post(session, suggestRequestJson(reply.request, REQUEST_K)), candidates))
+            reply.windows = SuggestRun::windows(reply.request, reply.start, candidates, SHOWN);
+        {
+            std::lock_guard<std::mutex> lock(mu);
+            latest = reply;
+            hasReply = true;
+        }
+        cv.notify_all();
+        if (popup) PostMessage(popup, WM_SUGGEST_REPLY, 0, 0);
+    }
+    if (session) WinHttpCloseHandle(session);
+}
+
+// Screen rectangle of the caret in the foreground window; the mouse position if unknown.
+RECT caretRect() {
+    RECT r = {};
+    HWND foreground = GetForegroundWindow();
+    GUITHREADINFO info = {};
+    info.cbSize = sizeof(info);
+    if (foreground && GetGUIThreadInfo(GetWindowThreadProcessId(foreground, nullptr), &info) && info.hwndCaret &&
+        !IsRectEmpty(&info.rcCaret)) {
+        // rcCaret is in the caret window's own client units. For a window that is not DPI aware
+        // they are 96-DPI units that Windows scales up, so scale them to ours before adding the
+        // (already scaled) client origin.
+        typedef UINT(WINAPI * DpiForWindow)(HWND);
+        static DpiForWindow dpiForWindow =
+            (DpiForWindow)GetProcAddress(GetModuleHandleW(L"user32.dll"), "GetDpiForWindow");
+        UINT windowDpi = dpiForWindow ? dpiForWindow(info.hwndCaret) : 0;
+        if (!windowDpi) windowDpi = (UINT)scale;
+        POINT origin = {0, 0};
+        ClientToScreen(info.hwndCaret, &origin);
+        r.left = origin.x + MulDiv(info.rcCaret.left, scale, windowDpi);
+        r.top = origin.y + MulDiv(info.rcCaret.top, scale, windowDpi);
+        r.right = origin.x + MulDiv(info.rcCaret.right, scale, windowDpi);
+        r.bottom = origin.y + MulDiv(info.rcCaret.bottom, scale, windowDpi);
+        return r;
+    }
+    // Browsers and modern editors draw their own caret; they report it through accessibility.
+    IAccessible* acc = nullptr;
+    if (foreground && SUCCEEDED(AccessibleObjectFromWindow(foreground, (DWORD)OBJID_CARET, IID_IAccessible, (void**)&acc)) && acc) {
+        long x = 0, y = 0, w = 0, h = 0;
+        VARIANT self;
+        self.vt = VT_I4;
+        self.lVal = CHILDID_SELF;
+        HRESULT hr = acc->accLocation(&x, &y, &w, &h, self);
+        acc->Release();
+        if (SUCCEEDED(hr) && (x || y)) {
+            r = {x, y, x + w, y + h};
+            return r;
+        }
+    }
+    POINT p;
+    GetCursorPos(&p);
+    r = {p.x, p.y, p.x + 1, p.y + px(20)};
+    return r;
+}
+
+struct Colors {
+    COLORREF background, text, number, border;
+};
+Colors colors() {
+    if (vimekUsesDarkTheme()) return {RGB(32, 32, 36), RGB(236, 236, 240), RGB(110, 168, 254), RGB(80, 80, 88)};
+    return {RGB(255, 255, 255), RGB(24, 24, 28), RGB(37, 99, 235), RGB(196, 196, 204)};
+}
+
+// Lays the items out left to right; returns the size needed. Draws when dc is given a paint target.
+SIZE layout(HDC dc, bool draw) {
+    const int pad = px(8), gapNumber = px(4), gapItem = px(14);
+    Colors c = colors();
+    int x = pad, height = 0;
+    for (size_t i = 0; i < shown.size(); ++i) {
+        std::wstring number = std::to_wstring(i + 1);
+        SIZE s;
+        SelectObject(dc, numberFont);
+        GetTextExtentPoint32W(dc, number.c_str(), (int)number.size(), &s);
+        if (draw) {
+            SetTextColor(dc, c.number);
+            TextOutW(dc, x, pad, number.c_str(), (int)number.size());
+        }
+        x += s.cx + gapNumber;
+        height = max(height, (int)s.cy);
+        SelectObject(dc, textFont);
+        GetTextExtentPoint32W(dc, shown[i].c_str(), (int)shown[i].size(), &s);
+        if (draw) {
+            SetTextColor(dc, c.text);
+            TextOutW(dc, x, pad, shown[i].c_str(), (int)shown[i].size());
+        }
+        x += s.cx + (i + 1 < shown.size() ? gapItem : 0);
+        height = max(height, (int)s.cy);
+    }
+    SIZE size = {x + pad, height + 2 * pad};
+    return size;
+}
+
+void showNearCaret() {
+    HDC dc = GetDC(popup);
+    SIZE size = layout(dc, false);
+    ReleaseDC(popup, dc);
+    RECT caret = caretRect();
+    // Some toolkits (Tk, several games) report a caret only a few pixels tall: assume a line.
+    if (caret.bottom - caret.top < px(16)) caret.bottom = caret.top + px(24);
+    MONITORINFO mi = {};
+    mi.cbSize = sizeof(mi);
+    GetMonitorInfo(MonitorFromRect(&caret, MONITOR_DEFAULTTONEAREST), &mi);
+    int x = caret.left, y = caret.bottom + px(4);
+    if (y + size.cy > mi.rcWork.bottom) y = caret.top - size.cy - px(4);
+    if (x + size.cx > mi.rcWork.right) x = mi.rcWork.right - size.cx;
+    if (x < mi.rcWork.left) x = mi.rcWork.left;
+    SetWindowPos(popup, HWND_TOPMOST, x, y, size.cx, size.cy, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    InvalidateRect(popup, nullptr, TRUE);
+}
+
+void refresh() {
+    if (!VimekSuggest::active() || !theRun.endsInWord()) {
+        VimekSuggest::hide();
+        return;
+    }
+    std::vector<std::wstring> items = VimekSuggest::current(0);
+    std::wstring now = theRun.window();
+    bool differs = false;
+    for (const std::wstring& w : items) differs = differs || w != now;
+    if (!differs) {
+        // Keep what is on screen while a newer reply is on its way, if it still fits.
+        if (items.empty() && VimekSuggest::visible()) return;
+        VimekSuggest::hide();
+        return;
+    }
+    shown = items;
+    showNearCaret();
+}
+
+LRESULT CALLBACK popupProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
+    switch (message) {
+    case WM_SUGGEST_REPLY:
+        refresh();
+        return 0;
+    case WM_MOUSEACTIVATE:
+        return MA_NOACTIVATE;
+    case WM_ERASEBKGND:
+        return 1;
+    case WM_PAINT: {
+        PAINTSTRUCT ps;
+        HDC dc = BeginPaint(window, &ps);
+        RECT rc;
+        GetClientRect(window, &rc);
+        Colors c = colors();
+        HBRUSH background = CreateSolidBrush(c.background);
+        FillRect(dc, &rc, background);
+        DeleteObject(background);
+        HBRUSH border = CreateSolidBrush(c.border);
+        FrameRect(dc, &rc, border);
+        DeleteObject(border);
+        SetBkMode(dc, TRANSPARENT);
+        HGDIOBJ old = SelectObject(dc, textFont);
+        layout(dc, true);
+        SelectObject(dc, old);
+        EndPaint(window, &ps);
+        return 0;
+    }
+    }
+    return DefWindowProcW(window, message, wParam, lParam);
+}
+} // namespace
+
+namespace VimekSuggest {
+
+void init(HINSTANCE instance) {
+    if (popup) return;
+    // Accessibility calls for the caret need COM on this thread; harmless if already set up.
+    CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    HDC screen = GetDC(nullptr);
+    scale = GetDeviceCaps(screen, LOGPIXELSY);
+    ReleaseDC(nullptr, screen);
+    textFont = CreateFontW(-MulDiv(11, scale, 72), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+                           OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
+    numberFont = CreateFontW(-MulDiv(10, scale, 72), 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+                             OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
+    WNDCLASSEXW wc = {};
+    wc.cbSize = sizeof(wc);
+    wc.lpfnWndProc = popupProc;
+    wc.hInstance = instance;
+    wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
+    wc.lpszClassName = POPUP_CLASS;
+    RegisterClassExW(&wc);
+    popup = CreateWindowExW(WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE, POPUP_CLASS, L"", WS_POPUP,
+                            0, 0, 1, 1, nullptr, nullptr, instance, nullptr);
+    stopping = false;
+    worker = std::thread(workerLoop);
+}
+
+void shutdown() {
+    {
+        std::lock_guard<std::mutex> lock(mu);
+        stopping = true;
+    }
+    cv.notify_all();
+    if (worker.joinable()) worker.join();
+    if (popup) DestroyWindow(popup);
+    popup = nullptr;
+    if (textFont) DeleteObject(textFont);
+    if (numberFont) DeleteObject(numberFont);
+    textFont = numberFont = nullptr;
+}
+
+bool active() {
+    // VNI uses digits for marks, and other code tables are not one character per letter.
+    return vAiSuggest && popup && vLanguage == 1 && vCodeTable == 0 && vInputType != 1;
+}
+
+SuggestRun& run() { return theRun; }
+
+void changed() {
+    if (!active() || !theRun.endsInWord()) {
+        hide();
+        return;
+    }
+    std::wstring request = theRun.requestText();
+    size_t start = theRun.windowStart();
+    {
+        std::lock_guard<std::mutex> lock(mu);
+        if (request == wantedRequest && start == wantedStart) return;
+        wantedRequest = queuedRequest = request;
+        wantedStart = queuedStart = start;
+        queued = true;
+    }
+    cv.notify_all();
+}
+
+void reset() {
+    theRun.reset();
+    hide();
+}
+
+void hide() {
+    if (popup && IsWindowVisible(popup)) ShowWindow(popup, SW_HIDE);
+    shown.clear();
+}
+
+bool visible() { return popup && IsWindowVisible(popup); }
+
+std::vector<std::wstring> current(DWORD waitMs) {
+    std::wstring request = theRun.requestText();
+    size_t start = theRun.windowStart();
+    std::unique_lock<std::mutex> lock(mu);
+    auto ready = [&] { return hasReply && latest.request == request && latest.start == start; };
+    if (!ready() && waitMs && request == wantedRequest && start == wantedStart)
+        cv.wait_for(lock, std::chrono::milliseconds(waitMs), ready);
+    return ready() ? latest.windows : std::vector<std::wstring>();
+}
+
+} // namespace VimekSuggest

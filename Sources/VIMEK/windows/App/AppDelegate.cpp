@@ -4,6 +4,7 @@
 // Upstream attribution and modifications: see NOTICE.md.
 #include "AppDelegate.h"
 #include "VimekDashboard.h"
+#include "SuggestWindows.h"
 #include <Shlobj.h>
 
 static AppDelegate* _instance;
@@ -226,6 +227,11 @@ void AppDelegate::onToggleUseMacro() {
 	if (mainDialog) {
 		mainDialog->fillData();
 	}
+}
+
+void AppDelegate::onToggleAiSuggest() {
+	APP_SET_DATA(vAiSuggest, vAiSuggest ? 0 : 1);
+	VimekSuggest::reset();
 }
 
 void AppDelegate::onMacroTable() {

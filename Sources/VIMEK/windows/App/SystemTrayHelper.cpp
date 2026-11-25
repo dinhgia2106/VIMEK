@@ -5,6 +5,7 @@
 #include "SystemTrayHelper.h"
 #include "AppDelegate.h"
 #include "WindowsInput.h"
+#include "SuggestWindows.h"
 
 #define WM_TRAYMESSAGE (WM_USER + 1)
 #define TRAY_ICONUID 100
@@ -17,6 +18,7 @@
 #define POPUP_SPELLING 901
 #define POPUP_SMART_SWITCH 902
 #define POPUP_USE_MACRO 903
+#define POPUP_AI_SUGGEST 904
 
 #define POPUP_TELEX 910
 #define POPUP_VNI 911
@@ -84,6 +86,7 @@ map<UINT, LPCTSTR> menuData = {
 	{POPUP_SPELLING, _T("Bật kiểm tra chính tả")},
 	{POPUP_SMART_SWITCH, _T("Nhớ chế độ Việt/Anh theo ứng dụng")},
 	{POPUP_USE_MACRO, _T("Bật gõ tắt")},
+	{POPUP_AI_SUGGEST, _T("Gợi ý dấu bằng AI (thử nghiệm)")},
 	{POPUP_TELEX, _T("Kiểu gõ Telex")},
 	{POPUP_VNI, _T("Kiểu gõ VNI")},
 	{POPUP_SIMPLE_TELEX, _T("Kiểu gõ Simple Telex 1")},
@@ -164,6 +167,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 				break;
 			case POPUP_USE_MACRO:
 				AppDelegate::getInstance()->onToggleUseMacro();
+				break;
+			case POPUP_AI_SUGGEST:
+				AppDelegate::getInstance()->onToggleAiSuggest();
 				break;
 			case POPUP_MACRO_TABLE:
 				AppDelegate::getInstance()->onMacroTable();
@@ -266,7 +272,7 @@ void SystemTrayHelper::createPopupMenu() {
 	AppendMenu(otherCode, MF_CHECKED, POPUP_UNICODE_COMPOUND, menuData[POPUP_UNICODE_COMPOUND]);
 	AppendMenu(otherCode, MF_CHECKED, POPUP_VN_LOCALE_1258, menuData[POPUP_VN_LOCALE_1258]);
 	AppendMenu(popupMenu, MF_POPUP, (UINT_PTR)codeMenu, L"Bảng mã");
-	for(UINT id=POPUP_SPELLING;id<=POPUP_USE_MACRO;++id)AppendMenu(settingsMenu,MF_STRING,id,menuData[id]);
+	for(UINT id=POPUP_SPELLING;id<=POPUP_AI_SUGGEST;++id)AppendMenu(settingsMenu,MF_STRING,id,menuData[id]);
 	AppendMenu(popupMenu,MF_POPUP,(UINT_PTR)settingsMenu,L"Tùy chọn");
 	for(UINT id:{POPUP_MACRO_TABLE,POPUP_CONVERT_TOOL,POPUP_QUICK_CONVERT})AppendMenu(toolsMenu,MF_STRING,id,menuData[id]);
 	AppendMenu(popupMenu,MF_POPUP,(UINT_PTR)toolsMenu,L"Công cụ");
@@ -311,6 +317,7 @@ void SystemTrayHelper::updateData() {
 	MODIFY_MENU(settingsMenu, POPUP_SPELLING, vCheckSpelling);
 	MODIFY_MENU(settingsMenu, POPUP_SMART_SWITCH, vUseSmartSwitchKey);
 	MODIFY_MENU(settingsMenu, POPUP_USE_MACRO, vUseMacro);
+	MODIFY_MENU(settingsMenu, POPUP_AI_SUGGEST, vAiSuggest);
 	MODIFY_MENU(menuInputType, POPUP_TELEX, vInputType == 0);
 	MODIFY_MENU(menuInputType, POPUP_VNI, vInputType == 1);
 	MODIFY_MENU(menuInputType, POPUP_SIMPLE_TELEX, vInputType == 2);

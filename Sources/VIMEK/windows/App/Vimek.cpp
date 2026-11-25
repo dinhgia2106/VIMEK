@@ -5,6 +5,7 @@
 #include "stdafx.h"
 #include "AppDelegate.h"
 #include "WindowsInput.h"
+#include "SuggestWindows.h"
 
 #pragma comment(lib, "imm32")
 
@@ -63,6 +64,7 @@ LRESULT CALLBACK mouseHookProcess(int nCode, WPARAM wParam, LPARAM lParam);
 VOID CALLBACK winEventProcCallback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent, HWND hwnd, LONG idObject, LONG idChild, DWORD dwEventThread, DWORD dwmsEventTime);
 
 void VimekFree() {
+	VimekSuggest::shutdown();
 	UnhookWindowsHookEx(hMouseHook);
 	UnhookWindowsHookEx(hKeyboardHook);
 	UnhookWinEvent(hSystemEvent);
@@ -121,6 +123,8 @@ void VimekInit() {
 	}
 	APP_GET_DATA(vTempOffVimek, 0);
 	APP_GET_DATA(vFixChromiumBrowser, 0);
+	APP_GET_DATA(vAiSuggest, 0);
+	APP_GET_DATA(vAiSuggestPort, 8765);
 
 	//init convert tool
 	APP_GET_DATA(convertToolDontAlertWhenCompleted, 0);
@@ -178,6 +182,13 @@ void VimekInit() {
 	hKeyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboardHookProcess, hInstance, 0);
 	hMouseHook = SetWindowsHookEx(WH_MOUSE_LL, mouseHookProcess, hInstance, 0);
 	hSystemEvent = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, NULL, winEventProcCallback, 0, 0, WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS);
+	VimekSuggest::init(hInstance);
+	if (VimekWindowsInput::testInput()) { // in memory only, never saved
+		vLanguage = 1;
+		vAiSuggest = 1;
+		vRememberCode = 0;
+		vUseSmartSwitchKey = 0;
+	}
 }
 
 void saveSmartSwitchKeyData() {
@@ -414,6 +425,7 @@ void switchLanguage() {
 		vLanguage = 1;
 	else
 		vLanguage = 0;
+	VimekSuggest::reset();
 	if (vUseSmartSwitchKey) {
 		setAppInputMethodStatus(VimekHelper::getFrontMostAppExecuteName(), vLanguage | (vCodeTable << 1));
 		saveSmartSwitchKeyData();
@@ -499,6 +511,132 @@ static bool UnsetModifierMask(const Uint16& vkCode) {
 	return true;
 }
 
+/*---------------------------------------------------------------- model suggestions
+ * VimekSuggest::run() mirrors what this hook puts on screen since the last break: keys the
+ * application receives unchanged, and the engine's backspaces and characters. Only active with
+ * Unicode and a Telex-family input type, where every character is one UTF-16 unit.
+ */
+#define SUGGEST_MODIFIERS (MASK_CONTROL | MASK_ALT | MASK_WIN)
+
+// Character a key the hook lets through produces; 0 if it produces none we track.
+static wchar_t suggestTypedChar() {
+	if (_keycode == KEY_SPACE) return L' ';
+	bool shift = (_flag & MASK_SHIFT) != 0, caps = (_flag & MASK_CAPITAL) != 0;
+	bool letter = _keycode >= 'A' && _keycode <= 'Z';
+	return (wchar_t)keyCodeToCharacter(_keycode | ((letter ? shift != caps : shift) ? CAPS_MASK : 0));
+}
+
+// Character the engine sends for one charData entry (same rules as SendKeyCode, Unicode table).
+static wchar_t suggestEngineChar(Uint32 data) {
+	if (data & PURE_CHARACTER_MASK) return (wchar_t)(data & 0xFFFF);
+	if (data & CHAR_CODE_MASK) return (wchar_t)(Uint16)data;
+	Uint16 ch = keyCodeToCharacter(data);
+	return ch ? (wchar_t)ch : 0;
+}
+
+static void suggestMirror() {
+	SuggestRun& run = VimekSuggest::run();
+	if (pData->code == vDoNothing) {
+		if (_flag & SUGGEST_MODIFIERS) {
+			VimekSuggest::reset();
+			return;
+		}
+		if (_keycode == KEY_DELETE) {
+			run.erase(1);
+		} else {
+			wchar_t ch = suggestTypedChar();
+			if (!ch) { // Enter, Tab, arrows, Home, ...: the caret may have moved
+				VimekSuggest::reset();
+				return;
+			}
+			run.append(ch);
+			if (ch == L'.' || ch == L'!' || ch == L'?') { // a new sentence starts
+				VimekSuggest::reset();
+				return;
+			}
+		}
+	} else if (pData->code == vWillProcess || pData->code == vRestore || pData->code == vRestoreAndStartNewSession) {
+		run.erase(pData->backspaceCount);
+		for (int i = pData->newCharCount - 1; i >= 0; i--) {
+			wchar_t ch = suggestEngineChar(pData->charData[i]);
+			if (!ch) {
+				VimekSuggest::reset();
+				return;
+			}
+			run.append(ch);
+		}
+		if (pData->code == vRestore || pData->code == vRestoreAndStartNewSession) {
+			Uint16 ch = keyCodeToCharacter(_keycode | ((_flag & MASK_CAPITAL) || (_flag & MASK_SHIFT) ? CAPS_MASK : 0));
+			if (!ch) {
+				VimekSuggest::reset();
+				return;
+			}
+			run.append((wchar_t)ch);
+		}
+	} else { // macro
+		VimekSuggest::reset();
+		return;
+	}
+	VimekSuggest::changed();
+}
+
+// Replace the suggestion window on screen with `text` (and a space if asked), in one batch.
+static bool suggestApply(const std::wstring& text, bool space) {
+	size_t backspaces = 0;
+	std::wstring insert;
+	if (!VimekSuggest::run().replaceWindow(text, backspaces, insert)) return false;
+	if (space) insert += L' ';
+	std::vector<INPUT> events;
+	INPUT input;
+	if (vFixRecommendBrowser && !_gameTextInput && backspaces > 0) { // keep autocomplete from eating the edit
+		prepareUnicodeEvent(input, 0x202F, true); events.push_back(input);
+		prepareUnicodeEvent(input, 0x202F, false); events.push_back(input);
+		++backspaces;
+	}
+	for (size_t i = 0; i < backspaces; i++) {
+		events.push_back(backspaceEvent[0]);
+		events.push_back(backspaceEvent[1]);
+	}
+	for (wchar_t ch : insert) {
+		prepareUnicodeEvent(input, ch, true); events.push_back(input);
+		prepareUnicodeEvent(input, ch, false); events.push_back(input);
+	}
+	if (!events.empty()) SendInput((UINT)events.size(), events.data(), sizeof(INPUT));
+	if (space) VimekSuggest::run().append(L' ');
+	return true;
+}
+
+// Before the engine sees the key: digits choose, Esc keeps what was typed.
+static bool suggestBeforeEngine() {
+	if (!VimekSuggest::visible() || (_flag & (SUGGEST_MODIFIERS | MASK_SHIFT))) return false;
+	if (_keycode >= KEY_1 && _keycode <= KEY_5) {
+		std::vector<std::wstring> windows = VimekSuggest::current(100);
+		size_t choice = _keycode - KEY_1;
+		if (choice >= windows.size() || !suggestApply(windows[choice], false)) return false; // type the digit
+		VimekSuggest::run().lockAll();
+		startNewSession(); // the engine's word is no longer what is on screen
+		VimekSuggest::hide();
+		return true;
+	}
+	if (_keycode == KEY_ESC) {
+		VimekSuggest::run().lockAll();
+		VimekSuggest::hide();
+		return true;
+	}
+	return false;
+}
+
+// After the engine let Space through: take the first suggestion if it changes anything.
+static bool suggestSpace() {
+	if (_keycode != KEY_SPACE || pData->code != vDoNothing || (_flag & SUGGEST_MODIFIERS)) return false;
+	SuggestRun& run = VimekSuggest::run();
+	if (!run.endsInWord()) return false;
+	std::vector<std::wstring> windows = VimekSuggest::current(100);
+	if (windows.empty() || windows[0] == run.window() || !suggestApply(windows[0], true)) return false;
+	VimekSuggest::changed();
+	return true;
+}
+
 #include "../../engine/ModifierShortcut.h"
 static VimekModifierShortcut languageChord;
 static int chordConfig = 0;
@@ -510,7 +648,11 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 	// cross-thread messages. Ignore synthetic input, not physical driver tags.
 	const KBDLLHOOKSTRUCT key = *(KBDLLHOOKSTRUCT *)lParam;
 	if (VimekWindowsInput::isInjected(key)) {
-		++VimekWindowsInput::diagnostics().injected;
+		if (!(VimekWindowsInput::testInput() && key.dwExtraInfo == VimekWindowsInput::TEST_INPUT_TAG)) {
+			++VimekWindowsInput::diagnostics().injected;
+			return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
+		}
+	} else if (VimekWindowsInput::testInput()) {
 		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
 	}
 	++VimekWindowsInput::diagnostics().physical;
@@ -591,10 +733,13 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 	// foreground IME is open or does not respond (for example during a frame).
 	HWND foreground = GetForegroundWindow();
 	_gameTextInput = VimekWindowsInput::usesGameTextInput(foreground);
-	if (down && VimekWindowsInput::queryImeOpen(ImmGetDefaultIMEWnd(foreground)))
+	if (down && VimekWindowsInput::queryImeOpen(ImmGetDefaultIMEWnd(foreground))) {
+		VimekSuggest::reset();
 		return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
+	}
 
 	if (vLanguage == 0) {
+		if (down && !VimekSuggest::run().empty()) VimekSuggest::reset();
 		if (vUseMacro && vUseMacroInEnglishMode && (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN)) {
 			vEnglishMode(((wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) ? vKeyEventState::KeyDown : vKeyEventState::MouseDown),
 				_keycode,
@@ -611,12 +756,22 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 
 	//handle keyboard
 	if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) {
+		bool suggesting = VimekSuggest::active();
+		if (suggesting && suggestBeforeEngine())
+			return -1; //consume event
 		//send event signal to Engine
 		vKeyHandleEvent(vKeyEvent::Keyboard,
 						vKeyEventState::KeyDown,
 						_keycode,
 						(_flag & MASK_SHIFT && _flag & MASK_CAPITAL) ? 0 : (_flag & MASK_SHIFT ? 1 : (_flag & MASK_CAPITAL ? 2 : 0)),
 						OTHER_CONTROL_KEY);
+		if (suggesting) {
+			if (suggestSpace())
+				return -1; //the space was sent with the suggestion
+			suggestMirror(); // before the code below changes backspaceCount
+		} else if (!VimekSuggest::run().empty()) {
+			VimekSuggest::reset();
+		}
 		if (pData->code == vDoNothing) { //do nothing
 			if (IS_DOUBLE_CODE(vCodeTable)) { //VNI
 				if (pData->extCode == 1) { //break key
@@ -693,6 +848,7 @@ LRESULT CALLBACK mouseHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 	case WM_MBUTTONUP:
 	case WM_XBUTTONUP:
 	case WM_NCXBUTTONUP:
+		VimekSuggest::reset(); // the caret may have moved
 		//send event signal to Engine
 		vKeyHandleEvent(vKeyEvent::Mouse, vKeyEventState::MouseDown, 0);
 		if (IS_DOUBLE_CODE(vCodeTable)) { //VNI
@@ -704,6 +860,7 @@ LRESULT CALLBACK mouseHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 }
 
 VOID CALLBACK winEventProcCallback(HWINEVENTHOOK hWinEventHook, DWORD dwEvent, HWND hwnd, LONG idObject, LONG idChild, DWORD dwEventThread, DWORD dwmsEventTime) {
+	VimekSuggest::reset(); // another window has the focus
 	//smart switch key
 	if (vUseSmartSwitchKey || vRememberCode) {
 		string exe = VimekHelper::getForegroundAppExecuteName();
