@@ -1,5 +1,9 @@
 # Changelog
 
+## Chưa phát hành
+
+- Gợi ý dấu bằng AI nhận cả cụm gõ liền không dấu cách (`homnaytroidepqua` -> `hôm nay trời đẹp quá`): server tách từ rồi thêm dấu, Space hoặc phím số thay cả cụm. VIMEK gửi kèm các phím đã bấm vì engine Telex có thể hiểu nhầm chữ trong cụm gõ liền là dấu.
+
 ## 0.1.0-alpha.12
 
 - Gợi ý dấu bằng AI chỉ áp dụng cho từ đang gõ (từ đầu câu hoặc sau dấu cách); các từ trước không bị sửa, và từ đã gõ dấu bằng Telex không được gợi ý.

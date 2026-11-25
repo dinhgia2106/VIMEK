@@ -542,6 +542,7 @@ static void suggestMirror() {
 			return;
 		}
 		if (_keycode == KEY_DELETE) {
+			run.key(L'');
 			run.erase(1);
 		} else {
 			wchar_t ch = suggestTypedChar();
@@ -549,6 +550,7 @@ static void suggestMirror() {
 				VimekSuggest::reset();
 				return;
 			}
+			run.key(ch);
 			run.append(ch);
 			if (ch == L'.' || ch == L'!' || ch == L'?') { // a new sentence starts
 				VimekSuggest::reset();
@@ -556,6 +558,8 @@ static void suggestMirror() {
 			}
 		}
 	} else if (pData->code == vWillProcess || pData->code == vRestore || pData->code == vRestoreAndStartNewSession) {
+		wchar_t pressed = suggestTypedChar(); // the key the engine turned into a mark or restored
+		if (pressed) run.key(pressed);
 		run.erase(pData->backspaceCount);
 		for (int i = pData->newCharCount - 1; i >= 0; i--) {
 			wchar_t ch = suggestEngineChar(pData->charData[i]);
@@ -580,11 +584,11 @@ static void suggestMirror() {
 	VimekSuggest::changed();
 }
 
-// Replace the suggestion window on screen with `text` (and a space if asked), in one batch.
-static bool suggestApply(const std::wstring& text, bool space) {
+// Replace the chunk on screen with `text` (and a space if asked), in one batch.
+static void suggestApply(const std::wstring& text, bool space) {
 	size_t backspaces = 0;
 	std::wstring insert;
-	if (!VimekSuggest::run().replaceWindow(text, backspaces, insert)) return false;
+	VimekSuggest::run().replaceWindow(text, backspaces, insert);
 	if (space) insert += L' ';
 	std::vector<INPUT> events;
 	INPUT input;
@@ -603,16 +607,29 @@ static bool suggestApply(const std::wstring& text, bool space) {
 	}
 	if (!events.empty()) SendInput((UINT)events.size(), events.data(), sizeof(INPUT));
 	if (space) VimekSuggest::run().append(L' ');
-	return true;
 }
 
-// Before the engine sees the key: digits choose, Esc keeps what was typed.
+// Before the engine sees the key: Space takes the first suggestion, digits choose, Esc keeps
+// what was typed. Space is handled here, not after the engine, because the engine may restore or
+// re-mark an unspaced chunk on Space; the chunk on screen is replaced as a whole either way.
 static bool suggestBeforeEngine() {
-	if (!VimekSuggest::visible() || (_flag & (SUGGEST_MODIFIERS | MASK_SHIFT))) return false;
+	if (_flag & SUGGEST_MODIFIERS) return false;
+	SuggestRun& run = VimekSuggest::run();
+	if (_keycode == KEY_SPACE) {
+		if (!run.endsInWord()) return false;
+		std::vector<std::wstring> windows = VimekSuggest::current(100);
+		if (windows.empty() || windows[0] == run.window()) return false; // the engine types the space
+		suggestApply(windows[0], true);
+		startNewSession(); // the engine's word is no longer what is on screen
+		VimekSuggest::changed();
+		return true;
+	}
+	if (!VimekSuggest::visible() || (_flag & MASK_SHIFT)) return false;
 	if (_keycode >= KEY_1 && _keycode <= KEY_5) {
 		std::vector<std::wstring> windows = VimekSuggest::current(100);
 		size_t choice = _keycode - KEY_1;
-		if (choice >= windows.size() || !suggestApply(windows[choice], false)) return false; // type the digit
+		if (choice >= windows.size()) return false; // type the digit
+		suggestApply(windows[choice], false);
 		VimekSuggest::run().lockAll();
 		startNewSession(); // the engine's word is no longer what is on screen
 		VimekSuggest::hide();
@@ -624,17 +641,6 @@ static bool suggestBeforeEngine() {
 		return true;
 	}
 	return false;
-}
-
-// After the engine let Space through: take the first suggestion if it changes anything.
-static bool suggestSpace() {
-	if (_keycode != KEY_SPACE || pData->code != vDoNothing || (_flag & SUGGEST_MODIFIERS)) return false;
-	SuggestRun& run = VimekSuggest::run();
-	if (!run.endsInWord() || run.windowTypedWithMarks()) return false; // Telex-marked words stay as typed
-	std::vector<std::wstring> windows = VimekSuggest::current(100);
-	if (windows.empty() || windows[0] == run.window() || !suggestApply(windows[0], true)) return false;
-	VimekSuggest::changed();
-	return true;
 }
 
 #include "../../engine/ModifierShortcut.h"
@@ -766,8 +772,6 @@ LRESULT CALLBACK keyboardHookProcess(int nCode, WPARAM wParam, LPARAM lParam) {
 						(_flag & MASK_SHIFT && _flag & MASK_CAPITAL) ? 0 : (_flag & MASK_SHIFT ? 1 : (_flag & MASK_CAPITAL ? 2 : 0)),
 						OTHER_CONTROL_KEY);
 		if (suggesting) {
-			if (suggestSpace())
-				return -1; //the space was sent with the suggestion
 			suggestMirror(); // before the code below changes backspaceCount
 		} else if (!VimekSuggest::run().empty()) {
 			VimekSuggest::reset();

@@ -10,64 +10,70 @@ static void check(bool ok, const char* what) {
     }
 }
 
+// Type text as the user would: each character is a key and appears on screen unchanged.
 static void type(SuggestRun& run, const std::wstring& text) {
-    for (wchar_t c : text) run.append(c);
+    for (wchar_t c : text) {
+        run.key(c);
+        run.append(c);
+    }
 }
 
 int main() {
     SuggestRun run;
-    type(run, L"toi di hoc ve nha an com");
+    type(run, L"Hôm qua toi ");
+    type(run, L"homnaytroi");
     check(run.endsInWord(), "ends in word");
-    check(run.window() == L"com", "window is only the word being typed");
+    check(run.window() == L"homnaytroi", "the chunk is everything since the last space");
+    check(run.context() == L"Hôm qua toi ", "context is the text before the chunk");
+    check(run.raw() == L"homnaytroi", "keys of the chunk");
 
-    // Space applies the first suggestion to that word; earlier words are never touched.
-    std::wstring request = run.requestText();
-    std::vector<std::wstring> cands = {L"tôi đi học về nhà ăn cơm", L"tôi đi học về nhà ăn côm", L"tôi đi học về nhà an cơm", L"short"};
-    auto wins = SuggestRun::windows(request, run.windowStart(), cands, 5);
-    check(wins.size() == 2 && wins[0] == L"cơm" && wins[1] == L"côm", "distinct windows, wrong lengths skipped");
+    // The chosen candidate is longer than the chunk: spaces are added.
     size_t bs = 0;
     std::wstring ins;
-    check(run.replaceWindow(wins[0], bs, ins), "replace window");
-    check(bs == 2 && ins == L"ơm", "only the changed tail is retyped");
-    check(run.screen() == L"toi di hoc ve nha an cơm", "screen after replacement");
+    run.replaceWindow(L"hôm nay trời", bs, ins);
+    check(bs == 9 && ins == L"ôm nay trời", "only the changed tail is retyped");
+    check(run.screen() == L"Hôm qua toi hôm nay trời" && run.raw().empty(), "screen after replacement");
+    check(run.window() == L"trời", "after replacement the chunk is the last word on screen");
 
-    // After a space the next word starts its own window.
-    run.append(L' ');
-    check(!run.endsInWord(), "space ends the word");
-    type(run, L"ngon");
-    check(run.window() == L"ngon" && run.requestText() == L"toi di hoc ve nha an cơm ngon", "next word");
+    // A space ends the chunk; the next one starts empty.
+    type(run, L" ");
+    check(!run.endsInWord() && run.raw().empty(), "space ends the chunk");
 
-    // A word the user marked with Telex gets no suggestion.
+    // The Telex engine shows marks the keys do not: the keys are kept apart from the screen.
     run.reset();
-    type(run, L"tiếng");
-    check(run.windowTypedWithMarks(), "Telex-marked word");
-    type(run, L" viet");
-    check(!run.windowTypedWithMarks() && run.window() == L"viet", "plain word after a marked one");
+    for (wchar_t c : std::wstring(L"anhs")) run.key(c);
+    for (wchar_t c : std::wstring(L"ánh")) run.append(c);
+    run.key(L'a');
+    run.append(L'a');
+    check(run.window() == L"ánha" && run.raw() == L"anhsa", "screen and keys differ under Telex");
+    run.key(L'\b');
+    run.erase(1);
+    check(run.window() == L"ánh" && run.raw() == L"anhs", "backspace removes one key");
 
     // A choice locks everything typed so far.
     run.lockAll();
-    check(run.window().empty() && !run.endsInWord(), "locked run has an empty window");
-    type(run, L" nhe");
-    check(run.window() == L"nhe" && run.requestText() == L"tiếng viet nhe", "after lock");
+    check(run.window().empty() && !run.endsInWord() && run.raw().empty(), "locked run has an empty chunk");
 
-    // Backspace past the start of the run means the screen is unknown.
-    run.erase(2);
-    check(run.screen() == L"tiếng viet n", "erase");
+    // Erasing more than the run holds means the screen is unknown.
     run.erase(1000);
     check(run.empty(), "erasing more than the run resets it");
 
-    // Long runs keep the newest characters.
+    // Long runs keep the newest characters; the context is bounded.
     for (int i = 0; i < 100; ++i) type(run, L"ab ");
     check(run.screen().size() == SuggestRun::MaxChars, "run is bounded");
+    type(run, L"xyz");
+    check(run.context().size() == SuggestRun::ContextChars, "context is bounded");
+
+    check(SuggestRun::distinct({L"a", L"", L"a", L"b", L"c"}, 2) == std::vector<std::wstring>({L"a", L"b"}), "distinct");
 
     // JSON round trip.
-    std::string json = suggestRequestJson(L"hom \"nay\"\\", 5);
-    check(json == "{\"text\":\"hom \\\"nay\\\"\\\\\",\"k\":5}", "request escaping");
+    std::string json = suggestChunkJson(L"Hôm ", L"n\"ay", L"na\\y", 5);
+    check(json == "{\"context\":\"H\xc3\xb4m \",\"screen\":\"n\\\"ay\",\"raw\":\"na\\\\y\",\"k\":5}", "request escaping");
     std::vector<std::wstring> parsed;
-    check(suggestParseCandidates("{\"candidates\": [\"h\xc3\xb4m nay\", \"h\\u00f4m\\\"\"], \"ms\": 3.1}", parsed),
+    check(suggestParseCandidates("{\"candidates\": [\"h\xc3\xb4m nay\", \"h\\u00f4m\\\"\"], \"telex\": false, \"ms\": 3.1}", parsed),
           "parse reply");
     check(parsed.size() == 2 && parsed[0] == L"hôm nay" && parsed[1] == L"hôm\"", "parsed values");
-    check(suggestParseCandidates("{\"candidates\":[]}", parsed) && parsed.empty(), "empty list");
+    check(suggestParseCandidates("{\"candidates\":[],\"telex\":true}", parsed) && parsed.empty(), "empty list");
     check(!suggestParseCandidates("{\"detail\":\"no\"}", parsed), "error reply");
 
     std::cout << "suggest tests; " << failures << " failures\n";

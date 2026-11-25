@@ -21,11 +21,14 @@ namespace {
 const UINT WM_SUGGEST_REPLY = WM_APP + 0x51;
 const wchar_t POPUP_CLASS[] = L"VimekSuggestPopup";
 const size_t SHOWN = 5;    // digits 1-5
-const int REQUEST_K = 10;  // ask for more: several candidates can share one window
+const int REQUEST_K = 5;
+
+struct Job {
+    std::wstring key, context, screen, raw;
+};
 
 struct Reply {
-    std::wstring request;
-    size_t start = 0;
+    std::wstring key;
     std::vector<std::wstring> windows;
     RECT caret = {};  // where the caret was when the reply came back
 };
@@ -41,8 +44,8 @@ std::mutex mu;
 std::condition_variable cv;
 std::thread worker;
 bool stopping = false, queued = false, hasReply = false;
-std::wstring queuedRequest, wantedRequest;
-size_t queuedStart = 0, wantedStart = (size_t)-1;
+Job queuedJob;
+std::wstring wantedKey;
 Reply latest;
 
 int px(int value) { return MulDiv(value, scale, 96); }
@@ -51,7 +54,7 @@ std::string post(HINTERNET session, const std::string& body) {
     std::string out;
     HINTERNET connection = WinHttpConnect(session, L"127.0.0.1", (INTERNET_PORT)vAiSuggestPort, 0);
     if (!connection) return out;
-    HINTERNET request = WinHttpOpenRequest(connection, L"POST", L"/candidates", nullptr, WINHTTP_NO_REFERER,
+    HINTERNET request = WinHttpOpenRequest(connection, L"POST", L"/chunk", nullptr, WINHTTP_NO_REFERER,
                                            WINHTTP_DEFAULT_ACCEPT_TYPES, 0);
     if (request) {
         const wchar_t headers[] = L"Content-Type: application/json\r\n";
@@ -203,17 +206,18 @@ void workerLoop() {
     if (session) WinHttpSetTimeouts(session, 300, 300, 300, 1000);
     for (;;) {
         Reply reply;
+        Job job;
         {
             std::unique_lock<std::mutex> lock(mu);
             cv.wait(lock, [] { return stopping || queued; });
             if (stopping) break;
-            reply.request = queuedRequest;
-            reply.start = queuedStart;
+            job = queuedJob;
             queued = false;
         }
+        reply.key = job.key;
         std::vector<std::wstring> candidates;
-        if (session && suggestParseCandidates(post(session, suggestRequestJson(reply.request, REQUEST_K)), candidates))
-            reply.windows = SuggestRun::windows(reply.request, reply.start, candidates, SHOWN);
+        if (session && suggestParseCandidates(post(session, suggestChunkJson(job.context, job.screen, job.raw, REQUEST_K)), candidates))
+            reply.windows = SuggestRun::distinct(candidates, SHOWN);
         if (!reply.windows.empty()) reply.caret = caretRect(uia);
         {
             std::lock_guard<std::mutex> lock(mu);
@@ -283,7 +287,7 @@ void showNearCaret(RECT caret) {
 }
 
 void refresh() {
-    if (!VimekSuggest::active() || !theRun.endsInWord() || theRun.windowTypedWithMarks()) {
+    if (!VimekSuggest::active() || !theRun.endsInWord()) {
         VimekSuggest::hide();
         return;
     }
@@ -385,18 +389,17 @@ bool active() {
 SuggestRun& run() { return theRun; }
 
 void changed() {
-    // No suggestion for a word the user is marking with Telex.
-    if (!active() || !theRun.endsInWord() || theRun.windowTypedWithMarks()) {
+    // The server decides whether the chunk is a word marked with Telex (no candidates then).
+    if (!active() || !theRun.endsInWord()) {
         hide();
         return;
     }
-    std::wstring request = theRun.requestText();
-    size_t start = theRun.windowStart();
+    Job job = {theRun.requestKey(), theRun.context(), theRun.window(), theRun.raw()};
     {
         std::lock_guard<std::mutex> lock(mu);
-        if (request == wantedRequest && start == wantedStart) return;
-        wantedRequest = queuedRequest = request;
-        wantedStart = queuedStart = start;
+        if (job.key == wantedKey) return;
+        wantedKey = job.key;
+        queuedJob = job;
         queued = true;
     }
     cv.notify_all();
@@ -415,11 +418,10 @@ void hide() {
 bool visible() { return popup && IsWindowVisible(popup); }
 
 std::vector<std::wstring> current(DWORD waitMs) {
-    std::wstring request = theRun.requestText();
-    size_t start = theRun.windowStart();
+    std::wstring key = theRun.requestKey();
     std::unique_lock<std::mutex> lock(mu);
-    auto ready = [&] { return hasReply && latest.request == request && latest.start == start; };
-    if (!ready() && waitMs && request == wantedRequest && start == wantedStart)
+    auto ready = [&] { return hasReply && latest.key == key; };
+    if (!ready() && waitMs && key == wantedKey)
         cv.wait_for(lock, std::chrono::milliseconds(waitMs), ready);
     return ready() ? latest.windows : std::vector<std::wstring>();
 }

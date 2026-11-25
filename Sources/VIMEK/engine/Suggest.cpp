@@ -10,13 +10,13 @@ static bool isLetter(wchar_t c) {
 
 void SuggestRun::reset() {
     screen_.clear();
-    typed_.clear();
+    raw_.clear();
     locked_ = 0;
 }
 
 void SuggestRun::append(wchar_t ch) {
     screen_ += ch;
-    typed_ += ch;
+    if (ch == L' ') raw_.clear();
     trim();
 }
 
@@ -24,7 +24,6 @@ void SuggestRun::trim() {
     if (screen_.size() <= MaxChars) return;
     size_t n = screen_.size() - MaxChars;
     screen_.erase(0, n);
-    typed_.erase(0, n);
     locked_ = locked_ > n ? locked_ - n : 0;
 }
 
@@ -34,12 +33,22 @@ void SuggestRun::erase(size_t count) {
         return;
     }
     screen_.resize(screen_.size() - count);
-    typed_.resize(typed_.size() - count);
     if (locked_ > screen_.size()) locked_ = screen_.size();
+}
+
+void SuggestRun::key(wchar_t ch) {
+    if (ch == L'\b') {
+        if (!raw_.empty()) raw_.pop_back();
+    } else if (ch == L' ') {
+        raw_.clear();
+    } else {
+        raw_ += ch;
+    }
 }
 
 void SuggestRun::lockAll() {
     locked_ = screen_.size();
+    raw_.clear();
 }
 
 bool SuggestRun::endsInWord() const {
@@ -47,50 +56,40 @@ bool SuggestRun::endsInWord() const {
 }
 
 size_t SuggestRun::windowStart() const {
-    size_t i = screen_.size(), start = screen_.size();
-    int words = 0;
-    while (i > locked_ && words < WindowWords) {
-        while (i > locked_ && screen_[i - 1] == L' ') --i;
-        if (i == locked_) break;
-        while (i > locked_ && screen_[i - 1] != L' ') --i;
-        start = i;
-        ++words;
-    }
-    return start;
+    size_t i = screen_.size();
+    while (i > locked_ && screen_[i - 1] != L' ') --i;
+    return i;
 }
 
-bool SuggestRun::windowTypedWithMarks() const {
-    for (size_t i = windowStart(); i < typed_.size(); ++i)
-        if ((unsigned long)typed_[i] > 0x7F) return true;
-    return false;
-}
-
-std::wstring SuggestRun::requestText() const {
+std::wstring SuggestRun::context() const {
     size_t start = windowStart();
-    return screen_.substr(0, start) + typed_.substr(start);
+    size_t from = start > ContextChars ? start - ContextChars : 0;
+    return screen_.substr(from, start - from);
 }
 
-std::vector<std::wstring> SuggestRun::windows(const std::wstring& request, size_t start,
-                                              const std::vector<std::wstring>& candidates, size_t limit) {
+std::wstring SuggestRun::requestKey() const {
+    return context() + L'\x1f' + window() + L'\x1f' + raw_;
+}
+
+std::vector<std::wstring> SuggestRun::distinct(const std::vector<std::wstring>& candidates, size_t limit) {
     std::vector<std::wstring> out;
     for (const std::wstring& c : candidates) {
-        if (c.size() != request.size() || start > c.size()) continue;
-        std::wstring w = c.substr(start);
-        if (std::find(out.begin(), out.end(), w) == out.end()) out.push_back(w);
+        if (c.empty() || std::find(out.begin(), out.end(), c) != out.end()) continue;
+        out.push_back(c);
         if (out.size() >= limit) break;
     }
     return out;
 }
 
-bool SuggestRun::replaceWindow(const std::wstring& text, size_t& backspaces, std::wstring& insert) {
-    size_t start = windowStart();
-    if (text.size() != screen_.size() - start) return false;
+void SuggestRun::replaceWindow(const std::wstring& text, size_t& backspaces, std::wstring& insert) {
+    size_t start = windowStart(), length = screen_.size() - start;
     size_t same = 0;
-    while (same < text.size() && text[same] == screen_[start + same]) ++same;
-    backspaces = text.size() - same;
+    while (same < text.size() && same < length && text[same] == screen_[start + same]) ++same;
+    backspaces = length - same;
     insert = text.substr(same);
-    screen_.replace(start, text.size(), text);
-    return true;
+    screen_.replace(start, length, text);
+    raw_.clear();
+    trim();
 }
 
 // ---------------------------------------------------------------- JSON
@@ -123,9 +122,9 @@ static void putWide(std::wstring& out, unsigned long cp) {
     }
 }
 
-std::string suggestRequestJson(const std::wstring& text, int k) {
+static void putJsonString(std::string& out, const std::wstring& text) {
     static const char hex[] = "0123456789abcdef";
-    std::string out = "{\"text\":\"";
+    out += '"';
     for (size_t i = 0; i < text.size(); ++i) {
         unsigned long cp = (unsigned long)text[i];
         if (sizeof(wchar_t) == 2 && cp >= 0xD800 && cp < 0xDC00 && i + 1 < text.size()) {
@@ -146,7 +145,17 @@ std::string suggestRequestJson(const std::wstring& text, int k) {
             putUtf8(out, cp);
         }
     }
-    out += "\",\"k\":" + std::to_string(k) + "}";
+    out += '"';
+}
+
+std::string suggestChunkJson(const std::wstring& context, const std::wstring& screen, const std::wstring& raw, int k) {
+    std::string out = "{\"context\":";
+    putJsonString(out, context);
+    out += ",\"screen\":";
+    putJsonString(out, screen);
+    out += ",\"raw\":";
+    putJsonString(out, raw);
+    out += ",\"k\":" + std::to_string(k) + "}";
     return out;
 }
 

@@ -14,13 +14,17 @@ Bật ở bảng điều khiển (dòng Gợi ý dấu bằng AI) hoặc trong t
 bằng AI (thử nghiệm). Chỉ chạy với Unicode dựng
 sẵn và kiểu gõ Telex; VNI dùng phím số để bỏ dấu nên không hỗ trợ.
 
-Gõ một từ không dấu, VIMEK hiện các bản có dấu của **chỉ từ đang gõ** (từ đầu câu hoặc
-sau dấu cách gần nhất) ngay dưới con trỏ. Các từ trước không bao giờ bị sửa.
+Gõ một cụm không dấu: một từ, hoặc nhiều từ viết liền không dấu cách (`homnaytroidepqua`).
+VIMEK hiện các cách tách và thêm dấu của **cụm đang gõ** (từ đầu câu hoặc sau dấu cách gần
+nhất) ngay dưới con trỏ, ví dụ `hôm nay trời đẹp quá`. Các cụm trước không bị sửa.
 
-- Space: nhận gợi ý 1, rồi thêm dấu cách.
+- Space: nhận gợi ý 1 (thay cả cụm, thêm dấu cách giữa các từ), rồi thêm dấu cách.
 - 1-5: chọn gợi ý tương ứng.
 - Esc: giữ nguyên chữ đã gõ; phím số sau đó gõ ra số.
-- Từ đang gõ có dấu Telex (`tieengs`, `dd`, `aa`, ...) không được gợi ý và giữ nguyên.
+- Một âm tiết gõ dấu bằng Telex (`tieengs`, `dduwowcj`) không được gợi ý và giữ nguyên.
+
+Khi gõ liền, engine Telex có thể hiểu nhầm một chữ là dấu (`anhsang` hiện thành `ánhang`). VIMEK
+gửi cho server cả chữ trên màn hình lẫn các phím đã bấm; server tách từ trên các phím đã bấm.
 
 Vị trí con trỏ lấy qua UI Automation (trình duyệt, Office, ứng dụng mới), rồi caret
 Win32, MSAA; không tìm được thì dùng vị trí chuột.
@@ -30,8 +34,11 @@ Model chạy ở server cục bộ của
 giá trị `vAiSuggestPort` trong HKCU\Software\VIMEK):
 
 ```
-python -m virestore.serve --model tagger --tagger runs/ds-tagger-prefix --threads 4 --port 8765
+python -m virestore.serve --model tagger-onnx --tagger runs/ds-tagger-prefix --onnx-file tagger.int8.onnx     --boundary runs/ds-boundary-large-span --threads 4 --port 8765
 ```
+
+`--boundary` là model tách từ (`ds-boundary-large-span`, kèm `lexicon.json`); VIMEK gọi
+`POST /chunk`.
 
 Model nên dùng là tagger huấn luyện trên câu dở dang (`ds-tagger-prefix`): khi chỉ được
 sửa từ đang gõ, model không thấy các từ phía sau, và tagger này đúng nhiều từ nhất ngay
