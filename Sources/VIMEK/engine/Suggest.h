@@ -3,7 +3,7 @@
 //
 // The user types a chunk (the text since the last space): one word without marks, or several
 // words without spaces (`homnaytroidepqua`). A local model proposes the segmented, marked forms
-// and the user takes one with Space (the first) or a digit. SuggestRun mirrors the text the input
+// and the user takes one with a digit; Space is an ordinary space. SuggestRun mirrors the text the input
 // method has put on screen since the last break, so the platform layer knows exactly which
 // characters to replace, and keeps the keys the user pressed for the chunk: the Telex engine may
 // turn letters of an unspaced chunk into marks (`anhsang` shows as `ánhang`).

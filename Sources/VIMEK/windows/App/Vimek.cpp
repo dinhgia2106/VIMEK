@@ -584,12 +584,11 @@ static void suggestMirror() {
 	VimekSuggest::changed();
 }
 
-// Replace the chunk on screen with `text` (and a space if asked), in one batch.
-static void suggestApply(const std::wstring& text, bool space) {
+// Replace the chunk on screen with `text`, in one batch.
+static void suggestApply(const std::wstring& text) {
 	size_t backspaces = 0;
 	std::wstring insert;
 	VimekSuggest::run().replaceWindow(text, backspaces, insert);
-	if (space) insert += L' ';
 	std::vector<INPUT> events;
 	INPUT input;
 	if (vFixRecommendBrowser && !_gameTextInput && backspaces > 0) { // keep autocomplete from eating the edit
@@ -606,30 +605,17 @@ static void suggestApply(const std::wstring& text, bool space) {
 		prepareUnicodeEvent(input, ch, false); events.push_back(input);
 	}
 	if (!events.empty()) SendInput((UINT)events.size(), events.data(), sizeof(INPUT));
-	if (space) VimekSuggest::run().append(L' ');
 }
 
-// Before the engine sees the key: Space takes the first suggestion, digits choose, Esc keeps
-// what was typed. Space is handled here, not after the engine, because the engine may restore or
-// re-mark an unspaced chunk on Space; the chunk on screen is replaced as a whole either way.
+// Before the engine sees the key: digits choose a suggestion, Esc keeps what was typed. Space is
+// an ordinary space: nothing changes unless the user picks a candidate.
 static bool suggestBeforeEngine() {
-	if (_flag & SUGGEST_MODIFIERS) return false;
-	SuggestRun& run = VimekSuggest::run();
-	if (_keycode == KEY_SPACE) {
-		if (!run.endsInWord()) return false;
-		std::vector<std::wstring> windows = VimekSuggest::current(100);
-		if (windows.empty() || windows[0] == run.window()) return false; // the engine types the space
-		suggestApply(windows[0], true);
-		startNewSession(); // the engine's word is no longer what is on screen
-		VimekSuggest::changed();
-		return true;
-	}
-	if (!VimekSuggest::visible() || (_flag & MASK_SHIFT)) return false;
+	if ((_flag & (SUGGEST_MODIFIERS | MASK_SHIFT)) || !VimekSuggest::visible()) return false;
 	if (_keycode >= KEY_1 && _keycode <= KEY_5) {
 		std::vector<std::wstring> windows = VimekSuggest::current(100);
 		size_t choice = _keycode - KEY_1;
 		if (choice >= windows.size()) return false; // type the digit
-		suggestApply(windows[choice], false);
+		suggestApply(windows[choice]);
 		VimekSuggest::run().lockAll();
 		startNewSession(); // the engine's word is no longer what is on screen
 		VimekSuggest::hide();

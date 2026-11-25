@@ -18,8 +18,8 @@ Gõ một cụm không dấu: một từ, hoặc nhiều từ viết liền khô
 VIMEK hiện các cách tách và thêm dấu của **cụm đang gõ** (từ đầu câu hoặc sau dấu cách gần
 nhất) ngay dưới con trỏ, ví dụ `hôm nay trời đẹp quá`. Các cụm trước không bị sửa.
 
-- Space: nhận gợi ý 1 (thay cả cụm, thêm dấu cách giữa các từ), rồi thêm dấu cách.
-- 1-5: chọn gợi ý tương ứng.
+- 1-5: chọn gợi ý tương ứng (thay cả cụm, thêm dấu cách giữa các từ).
+- Space: chỉ gõ dấu cách, không tự chọn gợi ý.
 - Esc: giữ nguyên chữ đã gõ; phím số sau đó gõ ra số.
 - Một âm tiết gõ dấu bằng Telex (`tieengs`, `dduwowcj`) không được gợi ý và giữ nguyên.
 

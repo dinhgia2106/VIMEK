@@ -2,8 +2,8 @@
 // Model suggestions next to Telex on Windows (experimental).
 //
 // A local virestore server (`python -m virestore.serve`) proposes marked forms of the last words
-// typed. A small window near the caret lists them: Space takes the first, 1-5 take one, Esc keeps
-// what was typed. Requests run on a worker thread; the keyboard hook never waits on the network
+// typed. A small window near the caret lists them: 1-5 take one, Esc keeps what was typed, and
+// Space is an ordinary space. Requests run on a worker thread; the keyboard hook never waits on the network
 // for longer than a short, bounded time.
 #pragma once
 #include <windows.h>
