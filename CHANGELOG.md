@@ -1,6 +1,6 @@
 # Changelog
 
-## Chưa phát hành
+## 0.1.0-alpha.13
 
 - Space không còn tự nhận gợi ý số 1: chỉ gõ dấu cách; chọn gợi ý bằng phím 1-5.
 - Gợi ý dấu bằng AI nhận cả cụm gõ liền không dấu cách (`homnaytroidepqua` -> `hôm nay trời đẹp quá`): server tách từ rồi thêm dấu, phím số thay cả cụm. VIMEK gửi kèm các phím đã bấm vì engine Telex có thể hiểu nhầm chữ trong cụm gõ liền là dấu.
