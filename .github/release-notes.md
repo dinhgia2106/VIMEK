@@ -9,6 +9,7 @@ VIMEK là bộ gõ tiếng Việt cho Windows, macOS và Linux, do GrazT phát t
 - Tùy chọn Chạy với quyền Admin và Khởi động cùng Windows ngay trong bảng điều khiển; kiểm tra chính tả và nhớ chế độ theo ứng dụng nằm trong Nâng cao.
 - Chuyển Việt/Anh bằng Ctrl+Alt trên Windows, Control+Option trên macOS. Có thể giữ một phím và bấm phím còn lại nhiều lần, kèm âm thanh hệ thống.
 - Gõ tắt, kiểm tra chính tả, nhớ chế độ theo ứng dụng và chuyển mã.
+- Windows, thử nghiệm và tắt mặc định: gợi ý dấu bằng AI chạy song song với Telex (Space nhận gợi ý 1, phím 1-5 chọn, Esc giữ chữ đã gõ). Cần chạy server model cục bộ của [vi-restore-llm](https://github.com/dinhgia2106/vi-restore-llm); xem [hướng dẫn](https://github.com/dinhgia2106/VIMEK/blob/main/Sources/VIMEK/windows/README.md).
 - Sửa lỗi tùy chọn Nâng cao biến mất khi chuyển tab trên Windows.
 - Sửa vùng Điều khiển bị trắng, che các tùy chọn ở Nâng cao và Chuyển mã.
 - Sửa tab Thông tin và nút Giấy phép & nguồn gốc bị cắt ở mép cửa sổ.
