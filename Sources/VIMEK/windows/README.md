@@ -10,7 +10,8 @@ Thông tin nguồn gốc và giấy phép ở [NOTICE](../../../NOTICE.md).
 
 ## Gợi ý dấu bằng AI (thử nghiệm)
 
-Bật trong tray: Tùy chọn > Gợi ý dấu bằng AI (thử nghiệm). Chỉ chạy với Unicode dựng
+Bật ở bảng điều khiển (dòng Gợi ý dấu bằng AI) hoặc trong tray: Tùy chọn > Gợi ý dấu
+bằng AI (thử nghiệm). Chỉ chạy với Unicode dựng
 sẵn và kiểu gõ Telex; VNI dùng phím số để bỏ dấu nên không hỗ trợ.
 
 Gõ không dấu (hoặc gõ Telex như thường), VIMEK hiện bản có dấu của tối đa 3 từ cuối

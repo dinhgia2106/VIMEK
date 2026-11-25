@@ -2,6 +2,7 @@
 #include "VimekDashboard.h"
 #include "AppDelegate.h"
 #include "VimekTheme.h"
+#include "SuggestWindows.h"
 #include <dwmapi.h>
 #include <objidl.h>
 #include <gdiplus.h>
@@ -9,14 +10,15 @@
 #pragma comment(lib, "dwmapi.lib")
 #pragma comment(lib, "gdiplus.lib")
 using namespace Gdiplus;
-enum { VI=7000, EN, METHOD0, METHOD1, METHOD2, METHOD3, ADMIN, STARTUP, MACRO, ADVANCED, CONVERT, HOTKEY };
+enum { VI=7000, EN, METHOD0, METHOD1, METHOD2, METHOD3, ADMIN, STARTUP, MACRO, ADVANCED, CONVERT, HOTKEY, AISUGGEST };
 struct Control {int id;const wchar_t* title;int x,y,width,height;};
 static const Control controls[]={
     {VI,L"Tiếng Việt",32,76,302,40},{EN,L"English",346,76,302,40},
     {METHOD0,L"Telex",32,164,145,40},{METHOD1,L"VNI",189,164,145,40},
     {METHOD2,L"Simple Telex 1",346,164,145,40},{METHOD3,L"Simple Telex 2",503,164,145,40},
-    {HOTKEY,L"Ctrl + Alt",456,263,192,36},{ADMIN,L"Tắt",558,321,90,36},{STARTUP,L"Tắt",558,370,90,36},
-    {MACRO,L"Gõ tắt",32,435,192,36},{CONVERT,L"Chuyển mã",236,435,192,36},{ADVANCED,L"Nâng cao",440,435,208,36}
+    {HOTKEY,L"Ctrl + Alt",456,263,192,36},{AISUGGEST,L"Tắt",558,321,90,36},
+    {ADMIN,L"Tắt",558,378,90,36},{STARTUP,L"Tắt",558,427,90,36},
+    {MACRO,L"Gõ tắt",32,492,192,36},{CONVERT,L"Chuyển mã",236,492,192,36},{ADVANCED,L"Nâng cao",440,492,208,36}
 };
 static COLORREF rgb(bool dark, COLORREF light, COLORREF night) { return dark ? night : light; }
 VimekDashboard::~VimekDashboard() {
@@ -60,18 +62,19 @@ void VimekDashboard::paint(HDC dc, RECT client) {
     const wchar_t* sample = vInputType==1?L"Ví dụ: tie6ng1 Vie6t5 → tiếng Việt":L"Ví dụ: tieengs Vieetj → tiếng Việt";
     text(dc,sample,32,209,610,26,bodyFont,muted);
     text(dc,L"Phím chuyển Việt / Anh",32,267,350,28,bodyFont,ink);
-    text(dc,L"Chạy với quyền Admin",32,324,350,28,bodyFont,ink);
-    text(dc,L"Khởi động cùng Windows",32,373,420,28,bodyFont,ink);
+    text(dc,L"Gợi ý dấu bằng AI (thử nghiệm)",32,325,420,28,bodyFont,ink);
+    text(dc,L"Chạy với quyền Admin",32,381,350,28,bodyFont,ink);
+    text(dc,L"Khởi động cùng Windows",32,430,420,28,bodyFont,ink);
     const wchar_t* codes[]={L"Unicode",L"TCVN3",L"VNI Windows",L"Unicode tổ hợp",L"CP1258"};
-    text(dc,codes[(vCodeTable>=0&&vCodeTable<5)?vCodeTable:0],32,496,610,22,bodyFont,muted);
+    text(dc,codes[(vCodeTable>=0&&vCodeTable<5)?vCodeTable:0],32,553,610,22,bodyFont,muted);
     HPEN p=CreatePen(PS_SOLID,1,line);auto old=SelectObject(dc,p);
-    for(int y:{254,310,419,484}){MoveToEx(dc,int(32*scale),int(y*scale),nullptr);LineTo(dc,int(648*scale),int(y*scale));}
+    for(int y:{254,310,367,476,541}){MoveToEx(dc,int(32*scale),int(y*scale),nullptr);LineTo(dc,int(648*scale),int(y*scale));}
     SelectObject(dc,old);DeleteObject(p);
 }
 void VimekDashboard::drawButton(const DRAWITEMSTRUCT* item, const wchar_t* suppliedLabel) {
     int id=item->CtlID;
     bool active=(id==VI&&vLanguage)||(id==EN&&!vLanguage)||(id>=METHOD0&&id<=METHOD3&&vInputType==id-METHOD0)||
-        (id==ADMIN&&vRunAsAdmin)||(id==STARTUP&&vRunWithWindows);
+        (id==ADMIN&&vRunAsAdmin)||(id==STARTUP&&vRunWithWindows)||(id==AISUGGEST&&vAiSuggest);
     COLORREF fill=active?rgb(dark,RGB(35,40,49),RGB(237,240,245)):rgb(dark,RGB(255,255,255),RGB(28,32,39));
     if(item->itemState&ODS_SELECTED)fill=rgb(dark,RGB(94,104,120),RGB(92,103,122));
     COLORREF ink=active?rgb(dark,RGB(255,255,255),RGB(26,30,37)):rgb(dark,RGB(48,54,65),RGB(226,231,240));
@@ -82,6 +85,7 @@ void VimekDashboard::drawButton(const DRAWITEMSTRUCT* item, const wchar_t* suppl
     wchar_t label[128];if(suppliedLabel)wcsncpy(label,suppliedLabel,127);else GetWindowTextW(item->hwndItem,label,128);label[127]=0;
     if(id==ADMIN)wcscpy(label,vRunAsAdmin?L"Bật":L"Tắt");
     if(id==STARTUP)wcscpy(label,vRunWithWindows?L"Bật":L"Tắt");
+    if(id==AISUGGEST)wcscpy(label,vAiSuggest?L"Bật":L"Tắt");
     auto old=SelectObject(item->hDC,bodyFont);SetBkMode(item->hDC,TRANSPARENT);SetTextColor(item->hDC,ink);
     DrawTextW(item->hDC,label,-1,&r,DT_CENTER|DT_VCENTER|DT_SINGLELINE|DT_NOPREFIX);SelectObject(item->hDC,old);
     if(item->itemState&ODS_FOCUS){InflateRect(&r,-int(4*scale),-int(4*scale));DrawFocusRect(item->hDC,&r);}
@@ -89,6 +93,7 @@ void VimekDashboard::drawButton(const DRAWITEMSTRUCT* item, const wchar_t* suppl
 void VimekDashboard::fillData() {
     if(!hDlg)return;
     SetDlgItemText(hDlg,ADMIN,vRunAsAdmin?L"Chạy với quyền Admin: Bật":L"Chạy với quyền Admin: Tắt");
+    SetDlgItemText(hDlg,AISUGGEST,vAiSuggest?L"Gợi ý dấu bằng AI: Bật":L"Gợi ý dấu bằng AI: Tắt");
     SetDlgItemText(hDlg,STARTUP,vRunWithWindows?L"Khởi động cùng Windows: Bật":L"Khởi động cùng Windows: Tắt");
     // Show custom shortcuts too; a click selects one of the two presets.
     std::wstring shortcut;
@@ -110,7 +115,7 @@ INT_PTR VimekDashboard::eventProc(HWND window,UINT message,WPARAM wp,LPARAM lp) 
         HDC windowDc=GetDC(window);
         scale=(windowDpi?windowDpi(window):GetDeviceCaps(windowDc,LOGPIXELSX))/96.f;
         ReleaseDC(window,windowDc);
-        RECT desired={0,0,int(680*scale),int(532*scale)};
+        RECT desired={0,0,int(680*scale),int(589*scale)};
         AdjustWindowRectEx(&desired,(DWORD)GetWindowLongPtr(window,GWL_STYLE),FALSE,(DWORD)GetWindowLongPtr(window,GWL_EXSTYLE));
         MONITORINFO monitor={sizeof(MONITORINFO)};GetMonitorInfo(MonitorFromWindow(window,MONITOR_DEFAULTTONEAREST),&monitor);
         int width=desired.right-desired.left,height=desired.bottom-desired.top;
@@ -123,6 +128,7 @@ INT_PTR VimekDashboard::eventProc(HWND window,UINT message,WPARAM wp,LPARAM lp) 
         updateTheme();SET_DIALOG_ICON(IDI_APP_ICON);
         for(const auto& c:controls)button(c.id,c.title,c.x,c.y,c.width,c.height);
         createToolTip(GetDlgItem(hDlg,HOTKEY),L"Bấm để đổi giữa Ctrl + Alt và Ctrl + Shift.");
+        createToolTip(GetDlgItem(hDlg,AISUGGEST),L"Chỉ với Telex và Unicode, cần server vi-restore-llm chạy trên máy. Space nhận gợi ý 1, phím 1-5 chọn, Esc giữ chữ đã gõ.");
         fillData();return TRUE;}
     case WM_PAINT:{PAINTSTRUCT ps;HDC dc=BeginPaint(window,&ps);RECT r;GetClientRect(window,&r);paint(dc,r);EndPaint(window,&ps);return TRUE;}
     case WM_ERASEBKGND:return TRUE;
@@ -136,6 +142,7 @@ INT_PTR VimekDashboard::eventProc(HWND window,UINT message,WPARAM wp,LPARAM lp) 
         else if(id>=METHOD0&&id<=METHOD3)app->onInputType(id-METHOD0);
         else if(id==ADMIN)app->onRunAsAdmin(!vRunAsAdmin,window);
         else if(id==STARTUP)app->onRunWithWindows(!vRunWithWindows);
+        else if(id==AISUGGEST)app->onToggleAiSuggest();
         else if(id==MACRO)app->onMacroTable();
         else if(id==CONVERT)app->onConvertTool();
         else if(id==ADVANCED)app->onAdvancedSettings();
@@ -161,8 +168,8 @@ bool VimekDashboard::renderPreview(bool night, const wchar_t* path) {
         panel.background=CreateSolidBrush(rgb(night,RGB(248,249,251),RGB(19,21,25)));
         panel.bodyFont=CreateFontW(-15,0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY,DEFAULT_PITCH,L"Segoe UI");
         panel.labelFont=CreateFontW(-13,0,0,0,FW_SEMIBOLD,FALSE,FALSE,FALSE,DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY,DEFAULT_PITCH,L"Segoe UI");
-        Bitmap bitmap(680,532,PixelFormat32bppARGB);Graphics g(&bitmap);g.Clear(Color::White);HDC dc=g.GetHDC();
-        RECT client={0,0,680,532};panel.paint(dc,client);
+        Bitmap bitmap(680,589,PixelFormat32bppARGB);Graphics g(&bitmap);g.Clear(Color::White);HDC dc=g.GetHDC();
+        RECT client={0,0,680,589};panel.paint(dc,client);
         for(const auto& c:controls){DRAWITEMSTRUCT item={};item.CtlID=c.id;item.hDC=dc;item.rcItem={c.x,c.y,c.x+c.width,c.y+c.height};panel.drawButton(&item,c.title);}
         g.ReleaseHDC(dc);
         const CLSID png={0x557cf406,0x1a04,0x11d3,{0x9a,0x73,0x00,0x00,0xf8,0x1e,0xf3,0x2e}};

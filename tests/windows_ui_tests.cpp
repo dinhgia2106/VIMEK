@@ -3,6 +3,7 @@
 #include "AppDelegate.h"
 #include "VimekTheme.h"
 #include "VimekDashboard.h"
+#include "SuggestWindows.h"
 #include "WindowsInput.h"
 #include "../Sources/VIMEK/engine/ModifierShortcut.h"
 #include <iostream>
@@ -198,13 +199,14 @@ HWND findOption(HWND root,int id) {
 
 class DashboardActions : public AppDelegate {
 public:
-    int shortcuts=0,admin=0,startup=0;
+    int shortcuts=0,admin=0,startup=0,suggest=0;
     HWND adminOwner=nullptr;
     // Replace OS effects only: native button dispatch and shortcut selection
     // execute unchanged, without writing preferences, startup entries or UAC.
     void onSwitchShortcut(int status) override {++shortcuts;vSwitchKeyStatus=status;}
     void onRunWithWindows(bool enabled) override {++startup;vRunWithWindows=enabled;}
     void onRunAsAdmin(bool enabled,HWND owner) override {++admin;vRunAsAdmin=enabled;adminOwner=owner;}
+    void onToggleAiSuggest() override {++suggest;vAiSuggest=vAiSuggest?0:1;}
 };
 bool captionIs(HWND control,const wchar_t* expected) {
     wchar_t text[128]={};GetWindowTextW(control,text,128);return wcscmp(text,expected)==0;
@@ -245,6 +247,13 @@ void testDashboard() {
     vRunAsAdmin=vRunWithWindows=1;vSwitchKeyStatus=int(0xFE0009FEu);dialog.fillData();
     check(captionIs(admin,L"Chạy với quyền Admin: Bật")&&captionIs(startup,L"Khởi động cùng Windows: Bật")&&
         captionIs(hotkey,L"Ctrl + Shift"),"Dashboard refresh reflects changes made in advanced settings");
+    HWND suggest=GetDlgItem(root,7012);int savedSuggest=vAiSuggest;
+    vAiSuggest=0;dialog.fillData();
+    SendMessage(suggest,BM_CLICK,0,0);pump();
+    check(vAiSuggest==1&&app.suggest==1&&captionIs(suggest,L"Gợi ý dấu bằng AI: Bật"),"AI suggestion toggle turns on through the shared tray action");
+    SendMessage(suggest,BM_CLICK,0,0);pump();
+    check(vAiSuggest==0&&app.suggest==2&&captionIs(suggest,L"Gợi ý dấu bằng AI: Tắt"),"AI suggestion toggle turns off on the next click");
+    vAiSuggest=savedSuggest;
     vSwitchKeyStatus=savedShortcut;vRunAsAdmin=savedAdmin;vRunWithWindows=savedStartup;
     DestroyWindow(root);pump();
 }
