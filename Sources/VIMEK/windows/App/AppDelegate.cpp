@@ -5,6 +5,7 @@
 #include "AppDelegate.h"
 #include "VimekDashboard.h"
 #include "SuggestWindows.h"
+#include "WindowsInput.h"
 #include <Shlobj.h>
 
 static AppDelegate* _instance;
@@ -70,7 +71,8 @@ int AppDelegate::run(HINSTANCE hInstance) {
 	this->hInstance = hInstance;
 
 	//check app has already run or not
-	HWND previousInstance = FindWindow(APP_CLASS, NULL);
+	// A --test-input run handles only tagged synthetic keys, so it may run beside the person's copy.
+	HWND previousInstance = VimekWindowsInput::testInput() ? NULL : FindWindow(APP_CLASS, NULL);
 	if (previousInstance) {
 		MessageBeep(MB_OK);
 		SendMessage(previousInstance, WM_USER + 2019, 0, 0);

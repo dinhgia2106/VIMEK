@@ -630,7 +630,7 @@ static bool suggestBeforeEngine() {
 static bool suggestSpace() {
 	if (_keycode != KEY_SPACE || pData->code != vDoNothing || (_flag & SUGGEST_MODIFIERS)) return false;
 	SuggestRun& run = VimekSuggest::run();
-	if (!run.endsInWord()) return false;
+	if (!run.endsInWord() || run.windowTypedWithMarks()) return false; // Telex-marked words stay as typed
 	std::vector<std::wstring> windows = VimekSuggest::current(100);
 	if (windows.empty() || windows[0] == run.window() || !suggestApply(windows[0], true)) return false;
 	VimekSuggest::changed();

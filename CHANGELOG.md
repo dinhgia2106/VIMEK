@@ -1,5 +1,11 @@
 # Changelog
 
+## Chưa phát hành
+
+- Gợi ý dấu bằng AI chỉ áp dụng cho từ đang gõ (từ đầu câu hoặc sau dấu cách); các từ trước không bị sửa, và từ đã gõ dấu bằng Telex không được gợi ý.
+- Ô gợi ý tìm vị trí con trỏ qua UI Automation trước (trình duyệt, Office), việc tìm chạy ở luồng nền.
+- Khuyến nghị model `ds-tagger-prefix` cho chế độ này.
+
 ## 0.1.0-alpha.11
 
 - Windows: thêm nút bật/tắt Gợi ý dấu bằng AI (thử nghiệm) ngay trên bảng điều khiển, dưới Phím chuyển Việt/Anh; vẫn có trong menu tray.

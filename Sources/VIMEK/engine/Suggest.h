@@ -15,8 +15,9 @@ class SuggestRun {
 public:
     // Longer runs drop their oldest characters; the model was trained on single sentences.
     static const size_t MaxChars = 192;
-    // How many trailing words a suggestion may still change.
-    static const int WindowWords = 3;
+    // How many trailing words a suggestion may change: only the word being typed, from the start
+    // of the sentence or the last space. Earlier words stay as they are.
+    static const int WindowWords = 1;
 
     void reset();
     // A character the input method put on screen (typed, or sent by the Telex engine).
@@ -35,8 +36,9 @@ public:
     // never before the locked part.
     size_t windowStart() const;
     std::wstring window() const { return screen_.substr(windowStart()); }
-    // What the model sees: locked text as shown, the window as the user typed it, so a
-    // suggestion applied earlier with Space can still be revised.
+    // The user already marked the window with Telex (or typed a marked letter): no suggestion.
+    bool windowTypedWithMarks() const;
+    // What the model sees: earlier text as shown, the window as the user typed it.
     std::wstring requestText() const;
 
     // Distinct windows (at most `limit`) cut from candidates for `request`, best first.

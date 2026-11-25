@@ -59,6 +59,12 @@ size_t SuggestRun::windowStart() const {
     return start;
 }
 
+bool SuggestRun::windowTypedWithMarks() const {
+    for (size_t i = windowStart(); i < typed_.size(); ++i)
+        if ((unsigned long)typed_[i] > 0x7F) return true;
+    return false;
+}
+
 std::wstring SuggestRun::requestText() const {
     size_t start = windowStart();
     return screen_.substr(0, start) + typed_.substr(start);

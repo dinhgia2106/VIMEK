@@ -97,7 +97,7 @@ if(WIN32)
     add_executable(VIMEK WIN32 ${VIMEK_WIN_SOURCES} "${VIMEK_WIN_DIR}/VIMEK.rc")
     target_include_directories(VIMEK PRIVATE "${VIMEK_WIN_DIR}")
     target_compile_definitions(VIMEK PRIVATE UNICODE _UNICODE VIMEK_PORTABLE_BUILD)
-    set(VIMEK_WIN_LIBRARIES comctl32 comdlg32 shell32 ole32 uuid version uxtheme imm32 psapi gdiplus dwmapi gdi32 winhttp oleacc)
+    set(VIMEK_WIN_LIBRARIES comctl32 comdlg32 shell32 ole32 uuid version uxtheme imm32 psapi gdiplus dwmapi gdi32 winhttp oleacc oleaut32)
     target_link_libraries(VIMEK PRIVATE vimek_engine ${VIMEK_WIN_LIBRARIES})
     if(MSVC)
         # The RC contains a complete manifest for both portable and MSVC builds.

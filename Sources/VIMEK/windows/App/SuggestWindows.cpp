@@ -4,6 +4,7 @@
 #include "VimekTheme.h"
 #include <winhttp.h>
 #include <oleacc.h>
+#include <UIAutomation.h>
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
@@ -11,6 +12,7 @@
 
 #pragma comment(lib, "winhttp")
 #pragma comment(lib, "oleacc")
+#pragma comment(lib, "oleaut32")
 
 int vAiSuggest = 0;
 int vAiSuggestPort = 8765;
@@ -25,6 +27,7 @@ struct Reply {
     std::wstring request;
     size_t start = 0;
     std::vector<std::wstring> windows;
+    RECT caret = {};  // where the caret was when the reply came back
 };
 
 SuggestRun theRun;
@@ -72,38 +75,84 @@ std::string post(HINTERNET session, const std::string& body) {
     return out;
 }
 
-void workerLoop() {
-    HINTERNET session = WinHttpOpen(L"VIMEK", WINHTTP_ACCESS_TYPE_NO_PROXY, WINHTTP_NO_PROXY_NAME,
-                                    WINHTTP_NO_PROXY_BYPASS, 0);
-    // A local server answers in tens of milliseconds; never let a dead one pile up requests.
-    if (session) WinHttpSetTimeouts(session, 300, 300, 300, 1000);
-    for (;;) {
-        Reply reply;
-        {
-            std::unique_lock<std::mutex> lock(mu);
-            cv.wait(lock, [] { return stopping || queued; });
-            if (stopping) break;
-            reply.request = queuedRequest;
-            reply.start = queuedStart;
-            queued = false;
+// UI Automation, looked up on the worker thread: some applications answer slowly, and the
+// keyboard hook must never wait on them. GUIDs are spelled out so MSVC and MinGW link alike.
+const CLSID CLSID_UiaClient = {0xff48dba4, 0x60ef, 0x4201, {0xaa, 0x87, 0x54, 0x10, 0x3e, 0xef, 0x59, 0x4e}};
+const IID IID_UiaClient = {0x30cbe57d, 0xd9d0, 0x452a, {0xab, 0x13, 0x7a, 0xc5, 0xac, 0x48, 0x25, 0xee}};
+const IID IID_UiaTextPattern = {0x32eba289, 0x3583, 0x42c9, {0x9c, 0x59, 0x3b, 0x6d, 0x9a, 0x1e, 0x9b, 0x6a}};
+const IID IID_UiaTextPattern2 = {0x506a921a, 0xfcc9, 0x409f, {0xb2, 0x3b, 0x37, 0xeb, 0x74, 0x10, 0x68, 0x72}};
+
+// Last rectangle of a text range (the line the caret is on), in screen pixels.
+bool rangeRect(IUIAutomationTextRange* range, RECT& r) {
+    SAFEARRAY* rects = nullptr;
+    bool ok = false;
+    if (SUCCEEDED(range->GetBoundingRectangles(&rects)) && rects) {
+        LONG lo = 0, hi = -1;
+        SafeArrayGetLBound(rects, 1, &lo);
+        SafeArrayGetUBound(rects, 1, &hi);
+        double* d = nullptr;
+        LONG n = hi - lo + 1;
+        if (n >= 4 && SUCCEEDED(SafeArrayAccessData(rects, (void**)&d))) {
+            const double* q = d + (n / 4 - 1) * 4;
+            r = {(LONG)q[0], (LONG)q[1], (LONG)(q[0] + q[2]), (LONG)(q[1] + q[3])};
+            ok = q[3] > 0;
+            SafeArrayUnaccessData(rects);
         }
-        std::vector<std::wstring> candidates;
-        if (session && suggestParseCandidates(post(session, suggestRequestJson(reply.request, REQUEST_K)), candidates))
-            reply.windows = SuggestRun::windows(reply.request, reply.start, candidates, SHOWN);
-        {
-            std::lock_guard<std::mutex> lock(mu);
-            latest = reply;
-            hasReply = true;
-        }
-        cv.notify_all();
-        if (popup) PostMessage(popup, WM_SUGGEST_REPLY, 0, 0);
+        SafeArrayDestroy(rects);
     }
-    if (session) WinHttpCloseHandle(session);
+    return ok;
+}
+
+bool uiaCaret(IUIAutomation* uia, RECT& r) {
+    IUIAutomationElement* element = nullptr;
+    if (!uia || FAILED(uia->GetFocusedElement(&element)) || !element) return false;
+    IUIAutomationTextRange* range = nullptr;
+    IUIAutomationTextPattern2* text2 = nullptr;
+    if (SUCCEEDED(element->GetCurrentPatternAs(UIA_TextPattern2Id, IID_UiaTextPattern2, (void**)&text2)) && text2) {
+        BOOL active = FALSE;
+        text2->GetCaretRange(&active, &range);
+        text2->Release();
+    }
+    if (!range) {
+        IUIAutomationTextPattern* text = nullptr;
+        if (SUCCEEDED(element->GetCurrentPatternAs(UIA_TextPatternId, IID_UiaTextPattern, (void**)&text)) && text) {
+            IUIAutomationTextRangeArray* selection = nullptr;
+            if (SUCCEEDED(text->GetSelection(&selection)) && selection) {
+                int length = 0;
+                selection->get_Length(&length);
+                if (length > 0) selection->GetElement(length - 1, &range);
+                selection->Release();
+            }
+            text->Release();
+        }
+    }
+    bool ok = false;
+    if (range) {
+        ok = rangeRect(range, r);
+        if (!ok) { // an empty range often has no rectangle: measure the character before the caret
+            IUIAutomationTextRange* before = nullptr;
+            if (SUCCEEDED(range->Clone(&before)) && before) {
+                int moved = 0;
+                before->MoveEndpointByUnit(TextPatternRangeEndpoint_Start, TextUnit_Character, -1, &moved);
+                if (moved && rangeRect(before, r)) {
+                    r.left = r.right;
+                    ok = true;
+                }
+                before->Release();
+            }
+        }
+        range->Release();
+    }
+    element->Release();
+    if (ok) r.right = r.left + 1;
+    return ok;
 }
 
 // Screen rectangle of the caret in the foreground window; the mouse position if unknown.
-RECT caretRect() {
+RECT caretRect(IUIAutomation* uia) {
     RECT r = {};
+    // Browsers, Office and modern editors draw their own caret and report it through UI Automation.
+    if (uiaCaret(uia, r)) return r;
     HWND foreground = GetForegroundWindow();
     GUITHREADINFO info = {};
     info.cbSize = sizeof(info);
@@ -125,7 +174,6 @@ RECT caretRect() {
         r.bottom = origin.y + MulDiv(info.rcCaret.bottom, scale, windowDpi);
         return r;
     }
-    // Browsers and modern editors draw their own caret; they report it through accessibility.
     IAccessible* acc = nullptr;
     if (foreground && SUCCEEDED(AccessibleObjectFromWindow(foreground, (DWORD)OBJID_CARET, IID_IAccessible, (void**)&acc)) && acc) {
         long x = 0, y = 0, w = 0, h = 0;
@@ -143,6 +191,41 @@ RECT caretRect() {
     GetCursorPos(&p);
     r = {p.x, p.y, p.x + 1, p.y + px(20)};
     return r;
+}
+
+void workerLoop() {
+    CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    IUIAutomation* uia = nullptr;
+    CoCreateInstance(CLSID_UiaClient, nullptr, CLSCTX_INPROC_SERVER, IID_UiaClient, (void**)&uia);
+    HINTERNET session = WinHttpOpen(L"VIMEK", WINHTTP_ACCESS_TYPE_NO_PROXY, WINHTTP_NO_PROXY_NAME,
+                                    WINHTTP_NO_PROXY_BYPASS, 0);
+    // A local server answers in tens of milliseconds; never let a dead one pile up requests.
+    if (session) WinHttpSetTimeouts(session, 300, 300, 300, 1000);
+    for (;;) {
+        Reply reply;
+        {
+            std::unique_lock<std::mutex> lock(mu);
+            cv.wait(lock, [] { return stopping || queued; });
+            if (stopping) break;
+            reply.request = queuedRequest;
+            reply.start = queuedStart;
+            queued = false;
+        }
+        std::vector<std::wstring> candidates;
+        if (session && suggestParseCandidates(post(session, suggestRequestJson(reply.request, REQUEST_K)), candidates))
+            reply.windows = SuggestRun::windows(reply.request, reply.start, candidates, SHOWN);
+        if (!reply.windows.empty()) reply.caret = caretRect(uia);
+        {
+            std::lock_guard<std::mutex> lock(mu);
+            latest = reply;
+            hasReply = true;
+        }
+        cv.notify_all();
+        if (popup) PostMessage(popup, WM_SUGGEST_REPLY, 0, 0);
+    }
+    if (session) WinHttpCloseHandle(session);
+    if (uia) uia->Release();
+    CoUninitialize();
 }
 
 struct Colors {
@@ -182,11 +265,10 @@ SIZE layout(HDC dc, bool draw) {
     return size;
 }
 
-void showNearCaret() {
+void showNearCaret(RECT caret) {
     HDC dc = GetDC(popup);
     SIZE size = layout(dc, false);
     ReleaseDC(popup, dc);
-    RECT caret = caretRect();
     // Some toolkits (Tk, several games) report a caret only a few pixels tall: assume a line.
     if (caret.bottom - caret.top < px(16)) caret.bottom = caret.top + px(24);
     MONITORINFO mi = {};
@@ -201,7 +283,7 @@ void showNearCaret() {
 }
 
 void refresh() {
-    if (!VimekSuggest::active() || !theRun.endsInWord()) {
+    if (!VimekSuggest::active() || !theRun.endsInWord() || theRun.windowTypedWithMarks()) {
         VimekSuggest::hide();
         return;
     }
@@ -215,8 +297,13 @@ void refresh() {
         VimekSuggest::hide();
         return;
     }
+    RECT caret;
+    {
+        std::lock_guard<std::mutex> lock(mu);
+        caret = latest.caret;
+    }
     shown = items;
-    showNearCaret();
+    showNearCaret(caret);
 }
 
 LRESULT CALLBACK popupProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -256,8 +343,6 @@ namespace VimekSuggest {
 
 void init(HINSTANCE instance) {
     if (popup) return;
-    // Accessibility calls for the caret need COM on this thread; harmless if already set up.
-    CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     HDC screen = GetDC(nullptr);
     scale = GetDeviceCaps(screen, LOGPIXELSY);
     ReleaseDC(nullptr, screen);
@@ -300,7 +385,8 @@ bool active() {
 SuggestRun& run() { return theRun; }
 
 void changed() {
-    if (!active() || !theRun.endsInWord()) {
+    // No suggestion for a word the user is marking with Telex.
+    if (!active() || !theRun.endsInWord() || theRun.windowTypedWithMarks()) {
         hide();
         return;
     }

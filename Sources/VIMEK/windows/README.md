@@ -14,22 +14,28 @@ Bật ở bảng điều khiển (dòng Gợi ý dấu bằng AI) hoặc trong t
 bằng AI (thử nghiệm). Chỉ chạy với Unicode dựng
 sẵn và kiểu gõ Telex; VNI dùng phím số để bỏ dấu nên không hỗ trợ.
 
-Gõ không dấu (hoặc gõ Telex như thường), VIMEK hiện bản có dấu của tối đa 3 từ cuối
-gần con trỏ:
+Gõ một từ không dấu, VIMEK hiện các bản có dấu của **chỉ từ đang gõ** (từ đầu câu hoặc
+sau dấu cách gần nhất) ngay dưới con trỏ. Các từ trước không bao giờ bị sửa.
 
-- Space: nhận gợi ý 1, rồi thêm dấu cách. Hai từ trước vẫn có thể được sửa lại khi
-  gõ từ tiếp theo.
-- 1-5: chọn gợi ý tương ứng; phần đã chọn được giữ cố định.
+- Space: nhận gợi ý 1, rồi thêm dấu cách.
+- 1-5: chọn gợi ý tương ứng.
 - Esc: giữ nguyên chữ đã gõ; phím số sau đó gõ ra số.
-- Từ đã gõ dấu bằng Telex được giữ nguyên.
+- Từ đang gõ có dấu Telex (`tieengs`, `dd`, `aa`, ...) không được gợi ý và giữ nguyên.
+
+Vị trí con trỏ lấy qua UI Automation (trình duyệt, Office, ứng dụng mới), rồi caret
+Win32, MSAA; không tìm được thì dùng vị trí chuột.
 
 Model chạy ở server cục bộ của
 [vi-restore-llm](https://github.com/dinhgia2106/vi-restore-llm), cổng 8765 (đổi bằng
 giá trị `vAiSuggestPort` trong HKCU\Software\VIMEK):
 
 ```
-python -m virestore.serve --model tagger-onnx --tagger runs/ds-tagger-large --onnx-file tagger.int8.onnx --threads 4 --port 8765
+python -m virestore.serve --model tagger --tagger runs/ds-tagger-prefix --threads 4 --port 8765
 ```
+
+Model nên dùng là tagger huấn luyện trên câu dở dang (`ds-tagger-prefix`): khi chỉ được
+sửa từ đang gõ, model không thấy các từ phía sau, và tagger này đúng nhiều từ nhất ngay
+lần đầu (xem `docs/streaming.md` của vi-restore-llm).
 
 Khi server không chạy, VIMEK gõ Telex như bình thường. Kiểm thử tự động: `VIMEK.exe
 --test-input` chỉ xử lý phím giả lập mang thẻ `TEST_INPUT_TAG` (xem `WindowsInput.h`),
