@@ -1,6 +1,6 @@
 # Changelog
 
-## Chưa phát hành
+## 0.1.0-alpha.10
 
 - Windows: thêm gợi ý dấu bằng AI (thử nghiệm, tắt mặc định), chạy song song với Telex: Space nhận gợi ý 1, phím 1-5 chọn gợi ý, Esc giữ chữ đã gõ. Model chạy ở server cục bộ của vi-restore-llm.
 
