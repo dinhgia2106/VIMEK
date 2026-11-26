@@ -2,7 +2,7 @@
 # Copyright (C) 2026 GrazT. SPDX-License-Identifier: GPL-3.0-only
 set -euo pipefail
 cd "$(dirname "$0")/.."
-vimek_version="${1:-0.1.0}"
+vimek_version="${1:-0.2.0}"
 if [[ ! "$vimek_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]]; then
     echo 'Invalid release version.' >&2; exit 1
 fi

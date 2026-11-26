@@ -114,8 +114,8 @@ sudo apt install build-essential cmake pkg-config file dpkg-dev libibus-1.0-dev 
 bash scripts/build-linux.sh
 ```
 
-Output: `dist/linux/VIMEK-0.1.0-Linux-amd64.deb` on an x86-64 machine.
-Install with `sudo apt install ./dist/linux/VIMEK-0.1.0-Linux-amd64.deb`, then log
+Output: `dist/linux/VIMEK-0.2.0-Linux-amd64.deb` on an x86-64 machine.
+Install with `sudo apt install ./dist/linux/VIMEK-0.2.0-Linux-amd64.deb`, then log
 out and back in and add **Vietnamese → VIMEK** to your input sources.
 The [Linux guide](Linux_Build.md) covers IBus setup, tests, and building on other distributions.
 

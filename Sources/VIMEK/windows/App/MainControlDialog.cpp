@@ -593,5 +593,5 @@ void MainControlDialog::onTabIndexChanged() {
 }
 
 void MainControlDialog::onUpdateButton() {
-	MessageBox(hDlg, _T("VIMEK 0.1.0 chưa có kênh cập nhật. Hãy dùng bản build từ mã nguồn VIMEK."), _T("VIMEK"), MB_OK | MB_ICONINFORMATION);
+	MessageBox(hDlg, _T("VIMEK 0.2.0 chưa có kênh cập nhật. Hãy dùng bản build từ mã nguồn VIMEK."), _T("VIMEK"), MB_OK | MB_ICONINFORMATION);
 }

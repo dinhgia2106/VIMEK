@@ -144,7 +144,7 @@ static CFRunLoopSourceRef runLoopSource;
 +(void)checkNewVersion:(NSWindow*)parent callbackFunc:(CheckNewVersionCallback) callback {
     // No network request: a fork must not use the upstream release feed.
     if (callback != nil) callback();
-    if (parent != nil) [self showMessage:parent message:@"VIMEK" subMsg:@"VIMEK 0.1.0 chưa có kênh cập nhật."];
+    if (parent != nil) [self showMessage:parent message:@"VIMEK" subMsg:@"VIMEK 0.2.0 chưa có kênh cập nhật."];
 }
 
 +(void)showUpdateMessage:(NSWindow*)parent needUpdating:(BOOL)needUpdating newVersion:(NSString*)versionString {

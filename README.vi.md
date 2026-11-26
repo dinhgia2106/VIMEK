@@ -110,7 +110,7 @@ sudo apt install build-essential cmake pkg-config file dpkg-dev libibus-1.0-dev 
 bash scripts/build-linux.sh
 ```
 
-Kết quả: `dist/linux/VIMEK-0.1.0-Linux-amd64.deb` trên máy x86-64.
+Kết quả: `dist/linux/VIMEK-0.2.0-Linux-amd64.deb` trên máy x86-64.
 Xem [hướng dẫn Linux](Linux_Build.md) để cài đặt, thiết lập IBus và chạy kiểm thử.
 
 ## Đóng góp
