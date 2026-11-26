@@ -1,5 +1,9 @@
 # Changelog
 
+## Chưa phát hành
+
+- Windows x64: kèm sẵn server gợi ý dấu bằng AI (thư mục `suggest`). VIMEK tự chạy server khi bật Gợi ý dấu bằng AI và tắt khi tắt gợi ý hoặc thoát; không cần cài Python hay tự chạy vi-restore-llm. Model chạy trên máy bằng onnxruntime. Nếu cổng 8765 đã có server, VIMEK dùng server đó. Bản x86 chưa có server kèm theo.
+
 ## 0.1.0-alpha.13
 
 - Space không còn tự nhận gợi ý số 1: chỉ gõ dấu cách; chọn gợi ý bằng phím 1-5.

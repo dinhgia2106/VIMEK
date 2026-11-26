@@ -234,6 +234,7 @@ void AppDelegate::onToggleUseMacro() {
 void AppDelegate::onToggleAiSuggest() {
 	APP_SET_DATA(vAiSuggest, vAiSuggest ? 0 : 1);
 	VimekSuggest::reset();
+	VimekSuggest::serverChanged();
 }
 
 void AppDelegate::onMacroTable() {

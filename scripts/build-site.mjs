@@ -20,7 +20,8 @@ const response = await fetch(
 if (!response.ok)
   throw new Error(`GitHub release lookup failed: HTTP ${response.status}`);
 const releases = (await response.json())
-  .filter((release) => !release.draft)
+  // VIMEK releases only: other tags hold build inputs (suggest-models-*).
+  .filter((release) => !release.draft && release.tag_name.startsWith("v"))
   .sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
 const release = releases.find((item) => !item.prerelease) || releases[0];
 if (!release)

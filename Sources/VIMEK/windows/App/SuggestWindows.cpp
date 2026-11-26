@@ -2,6 +2,7 @@
 #include "stdafx.h"
 #include "SuggestWindows.h"
 #include "VimekTheme.h"
+#include "WindowsInput.h"
 #include <winhttp.h>
 #include <oleacc.h>
 #include <UIAutomation.h>
@@ -77,6 +78,117 @@ std::string post(HINTERNET session, const std::string& body) {
     WinHttpCloseHandle(connection);
     return out;
 }
+
+// GET /health: true if a server already answers on the port (ours, or one the user started).
+bool serverAnswers() {
+    HINTERNET session = WinHttpOpen(L"VIMEK", WINHTTP_ACCESS_TYPE_NO_PROXY, WINHTTP_NO_PROXY_NAME,
+                                    WINHTTP_NO_PROXY_BYPASS, 0);
+    if (!session) return false;
+    WinHttpSetTimeouts(session, 300, 300, 300, 500);
+    bool ok = false;
+    if (HINTERNET connection = WinHttpConnect(session, L"127.0.0.1", (INTERNET_PORT)vAiSuggestPort, 0)) {
+        if (HINTERNET request = WinHttpOpenRequest(connection, L"GET", L"/health", nullptr, WINHTTP_NO_REFERER,
+                                                   WINHTTP_DEFAULT_ACCEPT_TYPES, 0)) {
+            DWORD status = 0, size = sizeof(status);
+            ok = WinHttpSendRequest(request, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) &&
+                 WinHttpReceiveResponse(request, nullptr) &&
+                 WinHttpQueryHeaders(request, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+                                     WINHTTP_HEADER_NAME_BY_INDEX, &status, &size, WINHTTP_NO_HEADER_INDEX) &&
+                 status == 200;
+            WinHttpCloseHandle(request);
+        }
+        WinHttpCloseHandle(connection);
+    }
+    WinHttpCloseHandle(session);
+    return ok;
+}
+
+// The bundled server. It lives in a job that closes with VIMEK, so it never outlives VIMEK, even
+// when VIMEK is killed. One thread starts and stops it; the keyboard hook only wakes that thread.
+namespace server {
+const DWORD RESTART_MS = 30000; // a server that exits is started again at most this often
+
+std::mutex mu;
+std::condition_variable cv;
+std::thread thread;
+bool stopping = false, wake = false;
+HANDLE job = nullptr, process = nullptr;
+ULONGLONG lastStart = 0;
+
+std::wstring exePath() {
+    wchar_t self[MAX_PATH];
+    DWORD n = GetModuleFileNameW(nullptr, self, MAX_PATH);
+    if (!n || n == MAX_PATH) return L"";
+    std::wstring dir(self, n);
+    dir.resize(dir.find_last_of(L"\\/") + 1);
+    return dir + L"suggest\\vimek-suggest.exe";
+}
+
+void stop() {
+    if (!process) return;
+    TerminateProcess(process, 0);
+    WaitForSingleObject(process, 2000);
+    CloseHandle(process);
+    process = nullptr;
+}
+
+void start() {
+    std::wstring exe = exePath();
+    if (exe.empty() || GetFileAttributesW(exe.c_str()) == INVALID_FILE_ATTRIBUTES) return;
+    if (!job) {
+        job = CreateJobObjectW(nullptr, nullptr);
+        JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits = {};
+        limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        if (job) SetInformationJobObject(job, JobObjectExtendedLimitInformation, &limits, sizeof(limits));
+    }
+    std::wstring dir = exe.substr(0, exe.find_last_of(L'\\'));
+    std::wstring cmd = L"\"" + exe + L"\" --port " + std::to_wstring(vAiSuggestPort);
+    STARTUPINFOW si = {sizeof(si)};
+    PROCESS_INFORMATION pi = {};
+    lastStart = GetTickCount64();
+    // Suspended until it is in the job, so not even its first instant runs outside it.
+    if (!CreateProcessW(exe.c_str(), &cmd[0], nullptr, nullptr, FALSE,
+                        CREATE_NO_WINDOW | CREATE_SUSPENDED, nullptr, dir.c_str(), &si, &pi))
+        return;
+    if (job) AssignProcessToJobObject(job, pi.hProcess);
+    ResumeThread(pi.hThread);
+    CloseHandle(pi.hThread);
+    process = pi.hProcess;
+}
+
+bool running() { return process && WaitForSingleObject(process, 0) == WAIT_TIMEOUT; }
+
+void loop() {
+    for (;;) {
+        {
+            std::unique_lock<std::mutex> lock(mu);
+            cv.wait_for(lock, std::chrono::milliseconds(RESTART_MS), [] { return stopping || wake; });
+            if (stopping) break;
+            wake = false;
+        }
+        if (!vAiSuggest) {
+            stop();
+            continue;
+        }
+        if (running()) continue;
+        if (process) { // it exited: maybe the port was taken, maybe it crashed
+            CloseHandle(process);
+            process = nullptr;
+            if (GetTickCount64() - lastStart < RESTART_MS) continue;
+        }
+        if (!serverAnswers()) start();
+    }
+    stop();
+}
+
+void notify() {
+    {
+        std::lock_guard<std::mutex> lock(mu);
+        wake = true;
+    }
+    cv.notify_all();
+}
+} // namespace server
 
 // UI Automation, looked up on the worker thread: some applications answer slowly, and the
 // keyboard hook must never wait on them. GUIDs are spelled out so MSVC and MinGW link alike.
@@ -365,6 +477,16 @@ void init(HINSTANCE instance) {
                             0, 0, 1, 1, nullptr, nullptr, instance, nullptr);
     stopping = false;
     worker = std::thread(workerLoop);
+    // A --test-input run brings its own server (or none); it never starts the bundled one.
+    if (!VimekWindowsInput::testInput()) {
+        server::stopping = false;
+        server::thread = std::thread(server::loop);
+        server::notify();
+    }
+}
+
+void serverChanged() {
+    if (server::thread.joinable()) server::notify();
 }
 
 void shutdown() {
@@ -374,6 +496,12 @@ void shutdown() {
     }
     cv.notify_all();
     if (worker.joinable()) worker.join();
+    {
+        std::lock_guard<std::mutex> lock(server::mu);
+        server::stopping = true;
+    }
+    server::cv.notify_all();
+    if (server::thread.joinable()) server::thread.join();
     if (popup) DestroyWindow(popup);
     popup = nullptr;
     if (textFont) DeleteObject(textFont);

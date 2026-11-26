@@ -128,7 +128,7 @@ INT_PTR VimekDashboard::eventProc(HWND window,UINT message,WPARAM wp,LPARAM lp) 
         updateTheme();SET_DIALOG_ICON(IDI_APP_ICON);
         for(const auto& c:controls)button(c.id,c.title,c.x,c.y,c.width,c.height);
         createToolTip(GetDlgItem(hDlg,HOTKEY),L"Bấm để đổi giữa Ctrl + Alt và Ctrl + Shift.");
-        createToolTip(GetDlgItem(hDlg,AISUGGEST),L"Chỉ với Telex và Unicode, cần server vi-restore-llm chạy trên máy. Space nhận gợi ý 1, phím 1-5 chọn, Esc giữ chữ đã gõ.");
+        createToolTip(GetDlgItem(hDlg,AISUGGEST),L"Chỉ với Telex và Unicode. Model chạy ngay trên máy, không gửi gì ra ngoài. Phím 1-5 chọn gợi ý, Esc giữ chữ đã gõ.");
         fillData();return TRUE;}
     case WM_PAINT:{PAINTSTRUCT ps;HDC dc=BeginPaint(window,&ps);RECT r;GetClientRect(window,&r);paint(dc,r);EndPaint(window,&ps);return TRUE;}
     case WM_ERASEBKGND:return TRUE;

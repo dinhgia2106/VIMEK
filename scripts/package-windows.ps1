@@ -15,7 +15,13 @@ try {
     if (-not (Test-Path -LiteralPath $vimekBinary)) { throw 'Run build-windows.ps1 first.' }
     Copy-Item README.md "$vimekBinaryDir/README.md"
     Copy-Item README.vi.md "$vimekBinaryDir/README.vi.md"
-    Compress-Archive -Path $vimekBinary,"$vimekBinaryDir/LICENSE","$vimekBinaryDir/NOTICE.md","$vimekBinaryDir/README.md","$vimekBinaryDir/README.vi.md" -DestinationPath "dist/VIMEK-$Version-Windows-$Platform.zip" -Force
+    $vimekItems = @($vimekBinary,"$vimekBinaryDir/LICENSE","$vimekBinaryDir/NOTICE.md","$vimekBinaryDir/README.md","$vimekBinaryDir/README.vi.md")
+    # The AI suggestion server (build-suggest-server.ps1), next to the exe: x64 only, onnxruntime has no 32-bit build.
+    if ($Platform -eq 'x64') {
+        if (-not (Test-Path -LiteralPath 'dist/suggest/vimek-suggest.exe')) { throw 'Run build-suggest-server.ps1 first: the x64 package carries the suggestion server.' }
+        $vimekItems += (Resolve-Path 'dist/suggest').Path
+    }
+    Compress-Archive -Path $vimekItems -DestinationPath "dist/VIMEK-$Version-Windows-$Platform.zip" -Force
 
     # Include actual working-tree changes and new files, preserving directories.
     # Exclude the Git database, compiler and outputs via .gitignore.

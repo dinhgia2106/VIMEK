@@ -9,7 +9,7 @@ VIMEK là bộ gõ tiếng Việt cho Windows, macOS và Linux, do GrazT phát t
 - Tùy chọn Chạy với quyền Admin và Khởi động cùng Windows ngay trong bảng điều khiển; kiểm tra chính tả và nhớ chế độ theo ứng dụng nằm trong Nâng cao.
 - Chuyển Việt/Anh bằng Ctrl+Alt trên Windows, Control+Option trên macOS. Có thể giữ một phím và bấm phím còn lại nhiều lần, kèm âm thanh hệ thống.
 - Gõ tắt, kiểm tra chính tả, nhớ chế độ theo ứng dụng và chuyển mã.
-- Windows, thử nghiệm và tắt mặc định: gợi ý dấu bằng AI chạy song song với Telex cho cụm đang gõ, kể cả nhiều từ gõ liền không dấu cách (`homnaytroidepqua` -> `hôm nay trời đẹp quá`). Phím 1-5 chọn gợi ý, Esc giữ chữ đã gõ, Space chỉ gõ dấu cách; âm tiết gõ dấu bằng Telex được giữ nguyên, ô gợi ý hiện dưới con trỏ. Cần chạy server model cục bộ của [vi-restore-llm](https://github.com/dinhgia2106/vi-restore-llm); xem [hướng dẫn](https://github.com/dinhgia2106/VIMEK/blob/main/Sources/VIMEK/windows/README.md). Bật/tắt ngay trên bảng điều khiển hoặc trong menu tray.
+- Windows, thử nghiệm và tắt mặc định: gợi ý dấu bằng AI chạy song song với Telex cho cụm đang gõ, kể cả nhiều từ gõ liền không dấu cách (`homnaytroidepqua` -> `hôm nay trời đẹp quá`). Phím 1-5 chọn gợi ý, Esc giữ chữ đã gõ, Space chỉ gõ dấu cách; âm tiết gõ dấu bằng Telex được giữ nguyên, ô gợi ý hiện dưới con trỏ. Bản x64 kèm sẵn model chạy trên máy (thư mục `suggest`, VIMEK tự khởi động khi bật gợi ý); bản x86 cần tự chạy server của [vi-restore-llm](https://github.com/dinhgia2106/vi-restore-llm), xem [hướng dẫn](https://github.com/dinhgia2106/VIMEK/blob/main/Sources/VIMEK/windows/README.md). Bật/tắt ngay trên bảng điều khiển hoặc trong menu tray.
 - Sửa lỗi tùy chọn Nâng cao biến mất khi chuyển tab trên Windows.
 - Sửa vùng Điều khiển bị trắng, che các tùy chọn ở Nâng cao và Chuyển mã.
 - Sửa tab Thông tin và nút Giấy phép & nguồn gốc bị cắt ở mép cửa sổ.
@@ -20,7 +20,7 @@ VIMEK là bộ gõ tiếng Việt cho Windows, macOS và Linux, do GrazT phát t
 - Website song ngữ có nút tải, hỗ trợ giao diện sáng/tối và hiển thị đầy đủ dấu tiếng Việt.
 - Linux: engine IBus với Unicode, bốn kiểu gõ, Ctrl+Alt/Ctrl+Shift, kiểm tra chính tả và giao diện GTK. Gõ tắt, nhớ chế độ theo ứng dụng và chuyển mã chưa có trong bản Linux này.
 
-Tải bản Windows x64 hoặc x86 phù hợp với máy, giải nén và chạy VIMEK. Bản macOS universal hỗ trợ Intel và Apple Silicon từ macOS 11; giải nén, đưa VIMEK vào Applications và cấp quyền Accessibility khi được yêu cầu.
+Tải bản Windows x64 hoặc x86 phù hợp với máy, giải nén cả thư mục (giữ thư mục `suggest` cạnh VIMEK64.exe) và chạy VIMEK. Bản macOS universal hỗ trợ Intel và Apple Silicon từ macOS 11; giải nén, đưa VIMEK vào Applications và cấp quyền Accessibility khi được yêu cầu.
 
 Linux: tải gói `.deb` amd64, cài bằng `sudo apt install ./VIMEK-0.1.0-alpha.13-Linux-amd64.deb`, đăng xuất rồi đăng nhập lại và thêm Vietnamese → VIMEK trong nguồn nhập liệu. Xem [hướng dẫn Linux](https://github.com/dinhgia2106/VIMEK/blob/main/Linux_Build.md).
 

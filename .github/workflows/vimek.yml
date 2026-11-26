@@ -7,6 +7,12 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+env:
+  # Bundled AI suggestion server: vi-restore-llm code and the models built from it
+  # (release asset of this repository, see scripts/build-suggest-server.ps1).
+  VIRESTORE_REF: 766813201b1bf5d45a69cf56cbd73a88140b5efb
+  SUGGEST_MODELS_TAG: suggest-models-1
+  SUGGEST_MODELS_SHA256: 1EFB3044FD67825519071952243090255CB9A82E1B5280877ED6167453DF3FA4
 jobs:
   windows:
     runs-on: windows-latest
@@ -28,6 +34,29 @@ jobs:
         run: cmake --build build/ci --config Release
       - name: Test input and native Windows dialogs
         run: ctest --test-dir build/ci -C Release --output-on-failure
+      # AI suggestion server, bundled with the x64 package only (onnxruntime has no 32-bit build).
+      - name: Check out vi-restore-llm
+        if: matrix.platform == 'x64'
+        uses: actions/checkout@v4
+        with:
+          repository: dinhgia2106/vi-restore-llm
+          ref: ${{ env.VIRESTORE_REF }}
+          path: .build/vi-restore-llm
+      - uses: actions/setup-python@v5
+        if: matrix.platform == 'x64'
+        with:
+          python-version: '3.12'
+      - name: Build the suggestion server
+        if: matrix.platform == 'x64'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download $env:SUGGEST_MODELS_TAG -p vimek-suggest-models-1.zip -D .build -R $env:GITHUB_REPOSITORY
+          $hash = (Get-FileHash .build/vimek-suggest-models-1.zip -Algorithm SHA256).Hash
+          if ($hash -ne $env:SUGGEST_MODELS_SHA256) { throw "Model archive hash $hash does not match." }
+          Expand-Archive .build/vimek-suggest-models-1.zip -DestinationPath .build/models
+          ./scripts/build-suggest-server.ps1 -Virestore .build/vi-restore-llm -Models .build/models
       - name: Package Windows
         shell: pwsh
         run: |

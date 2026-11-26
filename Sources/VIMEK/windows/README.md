@@ -31,14 +31,24 @@ Win32, MSAA; không tìm được thì dùng vị trí chuột.
 
 Model chạy ở server cục bộ của
 [vi-restore-llm](https://github.com/dinhgia2106/vi-restore-llm), cổng 8765 (đổi bằng
-giá trị `vAiSuggestPort` trong HKCU\Software\VIMEK):
+giá trị `vAiSuggestPort` trong HKCU\Software\VIMEK). Bản x64 kèm sẵn server trong thư mục
+`suggest` cạnh `VIMEK64.exe` (khoảng 130 MB khi giải nén, ~110 MB RAM khi chạy): VIMEK tự chạy
+`suggest\vimek-suggest.exe` khi bật gợi ý và tắt nó khi tắt gợi ý hoặc thoát. Server chạy
+trên onnxruntime, không cần Python hay PyTorch, không gửi gì ra mạng. Nếu cổng đã có server
+trả lời (ví dụ server tự chạy dưới đây), VIMEK dùng server đó. Bản x86 không kèm server.
+
+Tự chạy server từ mã nguồn vi-restore-llm:
 
 ```
-python -m virestore.serve --model tagger-onnx --tagger runs/ds-tagger-prefix --onnx-file tagger.int8.onnx     --boundary runs/ds-boundary-large-span --threads 4 --port 8765
+python -m virestore.serve --model tagger-onnx --tagger runs/ds-tagger-prefix --onnx-file tagger.int8.onnx --boundary runs/ds-boundary-large-span --boundary-onnx boundary.int8.onnx --threads 4 --port 8765
 ```
 
-`--boundary` là model tách từ (`ds-boundary-large-span`, kèm `lexicon.json`); VIMEK gọi
+`--boundary` là model tách từ (`ds-boundary-large-span`, kèm `lexicon.json`), `--boundary-onnx`
+là bản ONNX của nó (`python -m virestore.export_onnx --boundary ... --quantize ...`); VIMEK gọi
 `POST /chunk`.
+
+Build server kèm theo: `./scripts/build-suggest-server.ps1 -Virestore <vi-restore-llm>
+-Models <thư mục runs>` tạo `dist/suggest`; `package-windows.ps1 -Platform x64` đóng nó vào zip.
 
 Model nên dùng là tagger huấn luyện trên câu dở dang (`ds-tagger-prefix`): khi chỉ được
 sửa từ đang gõ, model không thấy các từ phía sau, và tagger này đúng nhiều từ nhất ngay

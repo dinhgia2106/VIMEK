@@ -17,6 +17,12 @@ the corresponding source code under the terms of the license.
 [Hammerspoon](https://github.com/Hammerspoon/hammerspoon), licensed under MIT.
 Their license and copyright notices remain in those files.
 
+The Windows x64 package includes the AI suggestion server in `suggest/`: code
+from [vi-restore-llm](https://github.com/dinhgia2106/vi-restore-llm) and its
+models (MIT, by GrazT), run by Python (PSF License), NumPy (BSD-3-Clause, with
+OpenBLAS) and ONNX Runtime (MIT), frozen with PyInstaller (GPL-2.0 with the
+bootloader exception). Their license texts are in `suggest/licenses/`.
+
 The website includes unmodified [Lora](https://github.com/google/fonts/tree/main/ofl/lora)
 font files. Copyright 2011 The Lora Project Authors, with Reserved Font Name
 "Lora". These fonts use the SIL Open Font License 1.1; see
